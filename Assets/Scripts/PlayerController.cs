@@ -5,8 +5,10 @@ using UnityEngine;
 
 public class PlayerController : MonoBehaviour
 {
-    public float horizontalSpeed = 2.0f;
-    public float jumpHeight = 2.0f;
+    public float horizontalSpeed;
+    public float jumpSpeed;
+    public float verticalDrag;
+    public float gravityScale;
 
     public Rigidbody2D rigidbody2d;
     public BoxCollider2D boxcollider2d;
@@ -16,7 +18,6 @@ public class PlayerController : MonoBehaviour
     private bool prevGrounded = false; //Value of grounded variable in previous frame.
     private bool jumping = false; //Signals the animator to jump.
     private bool jumpEnabled = false;
-    private float jumpForce;
 
     private bool jumpInput = false; //True indicates a jump input is waiting to be processed.
     private const float JUMP_INPUT_BUFFER_TIME = 0.15f;
@@ -26,6 +27,8 @@ public class PlayerController : MonoBehaviour
     private const int SURFACE_LAYER_MASK = 1 << 3;
     private const float GROUND_ANGLE = 64.0f; //How steep a surface can be to be considered ground.
     private const float WALL_ANGLE = 25.0f; //How slanted a surface can be to be considered a wall.
+
+    private const float GRAVITY = -9.81f;
 
     private enum CollisionSurface
     {
@@ -37,9 +40,6 @@ public class PlayerController : MonoBehaviour
 
     void Start()
     {
-        //Calculate force based on desired jump height.
-        jumpForce = Mathf.Sqrt(-2 * Physics2D.gravity.y * rigidbody2d.gravityScale * jumpHeight);
-
         StartCoroutine(ProcessJumpInputs());
     }
 
@@ -96,7 +96,10 @@ public class PlayerController : MonoBehaviour
 
     void FixedUpdate()
     {
+        //Check if colliding with any surfaces.
         grounded = TestCollidingGround();
+        bool rightWall = TestCollidingWall(true);
+        bool leftWall = TestCollidingWall(false);
 
         //Check if the player just landed.
         if(!prevGrounded && grounded)
@@ -114,32 +117,41 @@ public class PlayerController : MonoBehaviour
             StartCoroutine(DelayJumpEnabled(false));
         }
 
-        //Increase gravity while grounded to make the player stick to the floor.
-        rigidbody2d.gravityScale = grounded ? 5 : 1;
-
-        bool rightWall = TestCollidingWall(true);
-        bool leftWall = TestCollidingWall(false);
-
-        //Horizontal movement. Don't move if pressing against a wall.
+        //By default, if no inputs are pressed, the player has no horizontal motion,
+        // while keeping any vertical momentum.
         float xVelocity = 0.0f;
         float yVelocity = rigidbody2d.velocity.y;
+
+        //Horizontal movement. Don't move if pressing against a wall.
         float xRaw = Input.GetAxisRaw("Horizontal");
         if((xRaw > 0.0f && !rightWall) || (xRaw < 0.0f && !leftWall))
         {
             xVelocity = horizontalSpeed * xRaw;
         }
 
-        rigidbody2d.velocity = new Vector2(xVelocity, yVelocity);
+        //Gravity.
+        if(!grounded)
+        {
+            float drag = yVelocity * yVelocity * verticalDrag * ((yVelocity > 0.0f) ? -1 : 1);
+            float acceleration = GRAVITY * gravityScale + drag;
+            yVelocity += acceleration * Time.fixedDeltaTime;
+        }
+        else if(Mathf.Abs(xRaw) < 0.1f)
+        {
+            //Stick to the ground when stopping after moving up a slope.
+            yVelocity = 0.0f;
+        }
 
         //Jumping.
         if(jumpEnabled && jumpInput)
         {
-            rigidbody2d.gravityScale = 1;
-            rigidbody2d.AddForce(new Vector2(0.0f, jumpForce), ForceMode2D.Impulse);
+            yVelocity = jumpSpeed;
             jumping = true;
             jumpInput = false; //Indicate input has been processed.
             jumpEnabled = false;
         }
+
+        rigidbody2d.velocity = new Vector2(xVelocity, yVelocity);
 
         prevGrounded = grounded;
     }
@@ -183,11 +195,6 @@ public class PlayerController : MonoBehaviour
     private bool SurfaceRayTest(Vector2 origin, Vector2 direction, float angleTolerance)
     {
         RaycastHit2D hit = Physics2D.Raycast(origin, direction, SURFACE_CHECK_DISTANCE, SURFACE_LAYER_MASK);
-
-        if(hit.collider)
-        {
-            Debug.DrawLine(origin, hit.point);
-        }
         
         //Check if it hit a surface, and if so, that the surface angle is within tolerance.
         //(Ignore hits from colliders inside the ray's origin, as no normal is computed in that instance.)

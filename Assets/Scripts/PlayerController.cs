@@ -137,8 +137,8 @@ public class PlayerController : MonoBehaviour
     private Vector3 HandleCollisions(Vector3 moveDelta)
     {
         //Check each surface for collision.
-        CollisionInfo groundCol = TestCollidingGround(moveDelta);
-        CollisionInfo ceilingCol = null; //TEMP
+        CollisionInfo groundCol = TestCollidingGround(moveDelta, true);
+        CollisionInfo ceilingCol = TestCollidingGround(moveDelta, false);
         CollisionInfo rightCol = TestCollidingWall(moveDelta, true);
         CollisionInfo leftCol = TestCollidingWall(moveDelta, false);
 
@@ -218,18 +218,23 @@ public class PlayerController : MonoBehaviour
         prevGrounded = grounded;
     }
 
-    //Test if the player would collide with the ground if moved by the given offset.
+    //Test if the player would collide with the ground or ceiling if moved by the given offset.
+    //The parameter determines if the ground or ceiling is being checked.
     //If a collision is detected, return the corresponding RaycastHit. Otherwise, return null.
-    private CollisionInfo TestCollidingGround(Vector3 offset)
+    private CollisionInfo TestCollidingGround(Vector3 offset, bool ground)
     {
-        float yOffset = boxcollider2d.bounds.min.y + offset.y + SURFACE_CHECK_BUFFER;
-        Vector2 bottomLeft = new Vector2(boxcollider2d.bounds.min.x + offset.x, yOffset);
-        Vector2 bottomRight = new Vector2(boxcollider2d.bounds.max.x + offset.x, yOffset);
+        float yOffset = ground ?
+            boxcollider2d.bounds.min.y + offset.y + SURFACE_CHECK_BUFFER :
+            boxcollider2d.bounds.max.y + offset.y - SURFACE_CHECK_BUFFER;
 
-        CollisionInfo col = SurfaceRayTest(bottomLeft, Vector2.down, GROUND_ANGLE);
+        Vector2 leftOrigin = new Vector2(boxcollider2d.bounds.min.x + offset.x + 0.005f, yOffset);
+        Vector2 rightOrigin = new Vector2(boxcollider2d.bounds.max.x + offset.x - 0.005f, yOffset);
+        Vector2 dir = ground ? Vector2.down : Vector2.up;
+
+        CollisionInfo col = SurfaceRayTest(leftOrigin, dir, GROUND_ANGLE);
         if(col != null) return col;
 
-        col = SurfaceRayTest(bottomRight, Vector2.down, GROUND_ANGLE);
+        col = SurfaceRayTest(rightOrigin, dir, GROUND_ANGLE);
         if(col != null) return col;
 
         return null;
@@ -240,18 +245,23 @@ public class PlayerController : MonoBehaviour
     //If a collision is detected, return the corresponding RaycastHit. Otherwise, return null.
     private CollisionInfo TestCollidingWall(Vector3 offset, bool right)
     {
-        /*float xOffset = right ? 
-            boxcollider2d.bounds.max.x - SURFACE_CHECK_BUFFER : 
-            boxcollider2d.bounds.min.x + SURFACE_CHECK_BUFFER;
+        float xOffset = right ? 
+            boxcollider2d.bounds.max.x + offset.x - SURFACE_CHECK_BUFFER : 
+            boxcollider2d.bounds.min.x + offset.x + SURFACE_CHECK_BUFFER;
 
-        Vector2 topOrigin = new Vector2(xOffset, boxcollider2d.bounds.max.y);
-        Vector2 middleOrigin = new Vector2(xOffset, boxcollider2d.bounds.center.y);
-        Vector2 bottomOrigin = new Vector2(xOffset, boxcollider2d.bounds.min.y - 0.02f);
+        Vector2 topOrigin = new Vector2(xOffset, boxcollider2d.bounds.max.y + offset.y - 0.005f);
+        Vector2 middleOrigin = new Vector2(xOffset, boxcollider2d.bounds.center.y + offset.y);
+        Vector2 bottomOrigin = new Vector2(xOffset, boxcollider2d.bounds.min.y + offset.y + 0.005f);
         Vector2 dir = right ? Vector2.right : Vector2.left;
 
-        bool isWall = SurfaceRayTest(topOrigin, dir, WALL_ANGLE);
-        isWall |= SurfaceRayTest(middleOrigin, dir, WALL_ANGLE);
-        isWall |= SurfaceRayTest(bottomOrigin, dir, WALL_ANGLE);*/
+        CollisionInfo col = SurfaceRayTest(topOrigin, dir, WALL_ANGLE);
+        if(col != null) return col;
+
+        col = SurfaceRayTest(middleOrigin, dir, WALL_ANGLE);
+        if(col != null) return col;
+
+        col = SurfaceRayTest(bottomOrigin, dir, WALL_ANGLE);
+        if(col != null) return col;
 
         return null;
     }

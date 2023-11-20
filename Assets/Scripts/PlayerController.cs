@@ -3,16 +3,6 @@ using UnityEngine;
 
 public class PlayerController : MonoBehaviour
 {
-    private class CollisionInfo
-    {
-        public Vector2 pos; //Position of collision.
-
-        public CollisionInfo(Vector2 pos)
-        {
-            this.pos = pos;
-        }
-    }
-
     public float horizontalSpeed;
     public float jumpSpeed;
     public float verticalDrag;
@@ -29,23 +19,16 @@ public class PlayerController : MonoBehaviour
     private bool jumpInput = false; //True indicates a jump input is waiting to be processed.
     private const float JUMP_INPUT_BUFFER_TIME = 0.15f;
 
-    private const float SURFACE_CHECK_BUFFER = 0.1f; //Surface check raycasts should start inset from the bounds of the collider.
-    private const float SURFACE_CHECK_DISTANCE = 0.001f + SURFACE_CHECK_BUFFER; //How close a surface must be to be considered in contact with the player.
+    private const float SURFACE_CHECK_INSET = 0.1f; //Surface check raycasts should start inset from the bounds of the collider.
+    private const float SURFACE_CHECK_DISTANCE = 0.001f; //How close a surface must be to be considered in contact with the player.
     private const int SURFACE_LAYER_MASK = 1 << 3;
-    private const float GROUND_ANGLE = 64.0f; //How steep a surface can be to be considered ground.
+    private const float FLOOR_ANGLE = 64.0f; //How steep a surface can be to be considered ground.
     private const float WALL_ANGLE = 25.0f; //How slanted a surface can be to be considered a wall.
+    private const float MOVE_UNIT = 0.01f; //Movement is split into units. Smaller units are more precise but expensive.
 
     private const float GRAVITY_CONST = -9.81f;
     private Vector3 acceleration = new Vector3(0.0f, 0.0f, 0.0f);
-    private Vector3 velocity = new Vector3(0.0f, 0.0f, 0.0f); 
-
-    private enum CollisionSurface
-    {
-        Ground,
-        RightWall,
-        LeftWall,
-        Ceiling
-    }
+    private Vector3 velocity = new Vector3(0.0f, 0.0f, 0.0f);
 
     void Start()
     {
@@ -54,9 +37,13 @@ public class PlayerController : MonoBehaviour
 
     void Update()
     {
+        UpdateAnimations();
+    }
+
+    void FixedUpdate()
+    {
         UpdatePhysics();
         UpdateMovement();
-        UpdateAnimations();
     }
 
     //State machine for processing jump inputs.
@@ -106,11 +93,13 @@ public class PlayerController : MonoBehaviour
     //Resolve velocity, acceleration and collisions.
     private void UpdatePhysics()
     {
-        //Calculate potential movement based on velocity. Uses Verlet method.
-        Vector3 moveDelta = (velocity + (acceleration / 2.0f) * Time.deltaTime) * Time.deltaTime;
+        //Calculate movement based on velocity. Uses Verlet method.
+        Vector3 moveDelta = (velocity + (acceleration / 2.0f) * Time.fixedDeltaTime) * Time.fixedDeltaTime;
 
-        //Actual movement, accounting for collisions.
-        transform.Translate(HandleCollisions(moveDelta));
+        //Apply movement, accounting for collisions.
+        MoveWithCollisions(moveDelta.x, moveDelta.y);
+
+        CheckTouchingSurfaces();
 
         //Recalculate forces (gravity, drag).
         float yNewVelocity = 0.0f;
@@ -122,7 +111,7 @@ public class PlayerController : MonoBehaviour
             yNewAcceleration = GRAVITY_CONST * gravityScale + drag;
 
             //Verlet method.
-            yNewVelocity = velocity.y + ((acceleration.y + yNewAcceleration) / 2.0f) * Time.deltaTime;
+            yNewVelocity = velocity.y + ((acceleration.y + yNewAcceleration) / 2.0f) * Time.fixedDeltaTime;
         }
 
         //New velocity for next frame. Can be modified by other functions in between calls to UpdatePhysics.
@@ -131,52 +120,172 @@ public class PlayerController : MonoBehaviour
         acceleration.y = yNewAcceleration;
     }
 
-    //Handle collisions for the player moving by the given delta.
-    //Returns the correct delta after accounting for collisions.
-    //moveDelta must be less than SURFACE_CHECK_BUFFER to avoid passing right through a surface.
-    private Vector3 HandleCollisions(Vector3 moveDelta)
+    //Move by the given amount, accounting for collisions.
+    private void MoveWithCollisions(float xMove, float yMove)
     {
-        //Check each surface for collision.
-        CollisionInfo groundCol = TestCollidingGround(moveDelta, true);
-        CollisionInfo ceilingCol = TestCollidingGround(moveDelta, false);
-        CollisionInfo rightCol = TestCollidingWall(moveDelta, true);
-        CollisionInfo leftCol = TestCollidingWall(moveDelta, false);
+        /*
+         * The movement system assumes everything is an Axis-Aligned-Bounding-Box.
+         * The one exception is sloped ground, which is also accounted for. Sloped walls and ceilings are
+         *  not, and will result in undesired behaviour if used in a level.
+         * Movement is done in small steps, checking collisions each increment.
+         * This function is moderately expensive and should only be called from FixedUpdate.
+         */
 
-        bool groundHit = groundCol != null;
-        bool ceilingHit = ceilingCol != null;
-        bool rightWallHit = rightCol != null;
-        bool leftWallHit = leftCol != null;
+        bool rightward = xMove > 0.0f;
+        bool upward = yMove > 0.0f;
+        float xAmount = Mathf.Abs(xMove);
+        float yAmount = Mathf.Abs(yMove);
+        
+        //Move one unit at a time, checking collisions along the way.
+        while(xAmount > MOVE_UNIT || yAmount > MOVE_UNIT)
+        {
+            //X first. During a corner collision, this will result in landing on the ground rather than
+            // sliding down the wall.
+            if(xAmount > MOVE_UNIT)
+            {
+                bool collided = MoveCollideX(MOVE_UNIT, rightward);
+                xAmount = collided ? 0.0f : (xAmount - MOVE_UNIT);
+            }
+
+            if(yAmount > MOVE_UNIT)
+            {
+                bool collided = MoveCollideY(MOVE_UNIT, upward);
+                yAmount = collided ? 0.0f : (yAmount - MOVE_UNIT);
+            }
+        }
+
+        //Move any remaining sub-unit distance.
+        if(xAmount != 0.0f)
+        {
+            MoveCollideX(xAmount, rightward);
+        }
+
+        if(yAmount != 0.0f)
+        {
+            MoveCollideY(yAmount, upward);
+        }
+        else if(yMove == 0.0f)
+        {
+            //Special check for sloped ground. Always push up out of the floor
+            // when there's not any other y movement. (This doesn't account for
+            // sloped ceilings, only floors.)
+            MoveCollideY(0.0f, false);
+        }
+    }
+
+    //Check if any surfaces in the cardinal directions are in contact.
+    private void CheckTouchingSurfaces()
+    {
+        //Collision checks in the cardinal directions.
+        bool ceilingHit = TestFloorCollision(SURFACE_CHECK_DISTANCE, true) < Mathf.Infinity;
+        bool groundHit = TestFloorCollision(SURFACE_CHECK_DISTANCE, false) < Mathf.Infinity;
+        bool rightWallHit = TestWallCollision(SURFACE_CHECK_DISTANCE, true) < Mathf.Infinity;
+        bool leftWallHit = TestWallCollision(SURFACE_CHECK_DISTANCE, false) < Mathf.Infinity;
 
         //First check if being squashed between two surfaces.
         if((groundHit && ceilingHit) || (rightWallHit && leftWallHit))
         {
             //Do something here, probably destroy entity.
-            return Vector3.zero;
+            return;
         }
 
-        //Ceiling/floor collisions. (Not a collision if moving away.)
-        grounded = false;
-        if(groundHit && velocity.y < 0.01f)
-        {
-            moveDelta.y = groundCol.pos.y - boxcollider2d.bounds.min.y;
-            grounded = true;
-        }
-        if(ceilingHit && velocity.y > -0.01)
-        {
-            moveDelta.y = ceilingCol.pos.y - boxcollider2d.bounds.max.y;
-        }
+        //Check if grounded. It's not grounded if it's moving away.
+        grounded = groundHit && velocity.y < 0.01f;
+    }
 
-        //Wall collisions.
-        if(rightWallHit && velocity.x > -0.01f)
-        {
-            moveDelta.x = rightCol.pos.x - boxcollider2d.bounds.max.x;
-        }
-        if(leftWallHit && velocity.x < 0.01f)
-        {
-            moveDelta.x = leftCol.pos.x - boxcollider2d.bounds.min.x;
-        }
+    //Move horizontally by the given amount. If this would collide, stop short.
+    //amount should be positive. rightward indicates direction.
+    //Return value indicates if there was a collision in the movement direction.
+    private bool MoveCollideX(float moveDistance, bool rightward)
+    {
+        //Check for collision, and cap movement if it's collided.
+        float colDistance = TestWallCollision(moveDistance, rightward);
+        bool collided = colDistance < moveDistance;
+        moveDistance = collided ? colDistance : moveDistance;
 
-        return moveDelta;
+        //Move the appropriate amount.
+        transform.Translate(rightward ? moveDistance : -moveDistance, 0.0f, 0.0f);
+
+        return collided;
+    }
+
+    //Move vertically by the given amount. If this would collide, stop short.
+    //amount should be positive. upward indicates direction.
+    //Return value indicates if there was a collision in the movement direction.
+    private bool MoveCollideY(float moveDistance, bool upward)
+    {
+        //Check for collision, and cap movement if it's collided.
+        float colDistance = TestFloorCollision(moveDistance, upward);
+        bool collided = colDistance < moveDistance;
+        moveDistance = collided ? colDistance : moveDistance;
+
+        //Move the appropriate amount.
+        transform.Translate(0.0f, upward ? moveDistance : -moveDistance, 0.0f);
+
+        return collided;
+    }
+
+    //See if the player collides with a floor/ceiling surface some distance away.
+    //Either check the ceiling above or the ground below.
+    private float TestFloorCollision(float distance, bool lookUp)
+    {
+        float yOffset = lookUp ? boxcollider2d.bounds.max.y : boxcollider2d.bounds.min.y;
+        Vector2 leftOrigin = new Vector2(boxcollider2d.bounds.min.x + 0.005f, yOffset);
+        Vector2 rightOrigin = new Vector2(boxcollider2d.bounds.max.x - 0.005f, yOffset);
+        Vector2 dir = lookUp ? Vector2.up : Vector2.down;
+
+        float colDistance = Mathf.Infinity;
+        colDistance = Mathf.Min(colDistance, SurfaceRayTest(leftOrigin, dir, distance, FLOOR_ANGLE));
+        colDistance = Mathf.Min(colDistance, SurfaceRayTest(rightOrigin, dir, distance, FLOOR_ANGLE));
+
+        return colDistance;
+    }
+
+    //See if the player collides with a wall some distance away.
+    //Either check for a wall to the right or the left.
+    private float TestWallCollision(float distance, bool lookRight)
+    {
+        float xOffset = lookRight ? boxcollider2d.bounds.max.x : boxcollider2d.bounds.min.x;
+        Vector2 topOrigin = new Vector2(xOffset, boxcollider2d.bounds.max.y - 0.005f);
+        Vector2 middleOrigin = new Vector2(xOffset, boxcollider2d.bounds.center.y);
+        Vector2 bottomOrigin = new Vector2(xOffset, boxcollider2d.bounds.min.y + 0.005f);
+        Vector2 dir = lookRight ? Vector2.right : Vector2.left;
+
+        float colDistance = Mathf.Infinity;
+        colDistance = Mathf.Min(colDistance, SurfaceRayTest(topOrigin, dir, distance, WALL_ANGLE));
+        colDistance = Mathf.Min(colDistance, SurfaceRayTest(middleOrigin, dir, distance, WALL_ANGLE));
+        colDistance = Mathf.Min(colDistance, SurfaceRayTest(bottomOrigin, dir, distance, WALL_ANGLE));
+
+        return colDistance;
+    }
+
+    //Helper function that casts a ray in a given direction, and determines if a surface of the correct
+    // orientation is hit.
+    //A hit surface must be angled within the given tolerance to be valid.
+    // E.g. if the ray is cast downwards to check for the ground, it can't be too steep, otherwise it 
+    // wouldn't count as 'ground'.
+    //The ray starts from an inset position, to detect collisions inside, or at the bounds of, this hitbox.
+    //Return value is the distance to the collision; Infinity otherwise.
+    private float SurfaceRayTest(Vector2 origin, Vector2 direction, float distance, float angleTolerance)
+    {
+        RaycastHit2D hit = Physics2D.Raycast(
+            origin - direction * SURFACE_CHECK_INSET,
+            direction,
+            SURFACE_CHECK_INSET + distance,
+            SURFACE_LAYER_MASK);
+        
+        //Check if it hit a surface, and if so, that the surface angle is within tolerance.
+        //(Ignore hits from colliders inside the ray's origin, as no normal is computed in that instance.)
+        if( (hit.collider != null) && 
+            (hit.fraction != 0.0f) && 
+            (Mathf.Abs(Vector2.Angle(-direction, hit.normal)) <= angleTolerance))
+            {
+                return hit.distance - SURFACE_CHECK_INSET;
+            }
+            else
+            {
+                return Mathf.Infinity;
+            }
     }
 
     //Respond to user input and react to physics calculations.
@@ -203,7 +312,7 @@ public class PlayerController : MonoBehaviour
         float xNewVelocity = horizontalSpeed * xRaw;
 
         //Jumping.
-        float yNewVelocity = velocity.y; //If not jumping, keep existing momentum.
+        float yNewVelocity = velocity.y; //If not jumping, keep existing verticalmomentum.
         if(jumpEnabled && jumpInput)
         {
             yNewVelocity = jumpSpeed;
@@ -216,77 +325,6 @@ public class PlayerController : MonoBehaviour
         velocity = new Vector2(xNewVelocity, yNewVelocity);
 
         prevGrounded = grounded;
-    }
-
-    //Test if the player would collide with the ground or ceiling if moved by the given offset.
-    //The parameter determines if the ground or ceiling is being checked.
-    //If a collision is detected, return the corresponding RaycastHit. Otherwise, return null.
-    private CollisionInfo TestCollidingGround(Vector3 offset, bool ground)
-    {
-        float yOffset = ground ?
-            boxcollider2d.bounds.min.y + offset.y + SURFACE_CHECK_BUFFER :
-            boxcollider2d.bounds.max.y + offset.y - SURFACE_CHECK_BUFFER;
-
-        Vector2 leftOrigin = new Vector2(boxcollider2d.bounds.min.x + offset.x + 0.005f, yOffset);
-        Vector2 rightOrigin = new Vector2(boxcollider2d.bounds.max.x + offset.x - 0.005f, yOffset);
-        Vector2 dir = ground ? Vector2.down : Vector2.up;
-
-        CollisionInfo col = SurfaceRayTest(leftOrigin, dir, GROUND_ANGLE);
-        if(col != null) return col;
-
-        col = SurfaceRayTest(rightOrigin, dir, GROUND_ANGLE);
-        if(col != null) return col;
-
-        return null;
-    }
-
-    //Test if the player would collide with a wall if moved by the given offset.
-    //The parameter determines if a right or left wall is being checked.
-    //If a collision is detected, return the corresponding RaycastHit. Otherwise, return null.
-    private CollisionInfo TestCollidingWall(Vector3 offset, bool right)
-    {
-        float xOffset = right ? 
-            boxcollider2d.bounds.max.x + offset.x - SURFACE_CHECK_BUFFER : 
-            boxcollider2d.bounds.min.x + offset.x + SURFACE_CHECK_BUFFER;
-
-        Vector2 topOrigin = new Vector2(xOffset, boxcollider2d.bounds.max.y + offset.y - 0.005f);
-        Vector2 middleOrigin = new Vector2(xOffset, boxcollider2d.bounds.center.y + offset.y);
-        Vector2 bottomOrigin = new Vector2(xOffset, boxcollider2d.bounds.min.y + offset.y + 0.005f);
-        Vector2 dir = right ? Vector2.right : Vector2.left;
-
-        CollisionInfo col = SurfaceRayTest(topOrigin, dir, WALL_ANGLE);
-        if(col != null) return col;
-
-        col = SurfaceRayTest(middleOrigin, dir, WALL_ANGLE);
-        if(col != null) return col;
-
-        col = SurfaceRayTest(bottomOrigin, dir, WALL_ANGLE);
-        if(col != null) return col;
-
-        return null;
-    }
-
-    //Helper function that casts a very short ray in a given direction,
-    // and determines if a surface of the correct orientation is hit.
-    //A hit surface must be angled within the given tolerance to be valid.
-    // E.g. if the ray is cast downwards to check for the ground, it can't be too steep,
-    // otherwise it wouldn't count as 'ground'.
-    private CollisionInfo SurfaceRayTest(Vector2 origin, Vector2 direction, float angleTolerance)
-    {
-        RaycastHit2D hit = Physics2D.Raycast(origin, direction, SURFACE_CHECK_DISTANCE, SURFACE_LAYER_MASK);
-        
-        //Check if it hit a surface, and if so, that the surface angle is within tolerance.
-        //(Ignore hits from colliders inside the ray's origin, as no normal is computed in that instance.)
-        if( (hit.collider != null) && 
-            (hit.fraction != 0.0f) && 
-            (Mathf.Abs(Vector2.Angle(-direction, hit.normal)) <= angleTolerance))
-            {
-                return new CollisionInfo(hit.point);
-            }
-            else
-            {
-                return null;
-            }
     }
 
     //Wait before enabling or disabling the jump.

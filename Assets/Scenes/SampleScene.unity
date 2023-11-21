@@ -523,6 +523,7 @@ GameObject:
   m_Component:
   - component: {fileID: 1196570904}
   - component: {fileID: 1196570903}
+  - component: {fileID: 1196570912}
   - component: {fileID: 1196570908}
   - component: {fileID: 1196570906}
   - component: {fileID: 1196570909}
@@ -636,10 +637,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   horizontalSpeed: 2.5
   jumpSpeed: 4
-  verticalDrag: 0.1
-  gravityScale: 1
-  boxcollider2d: {fileID: 1196570909}
   animator: {fileID: 1196570911}
+  platPhysics: {fileID: 1196570912}
 --- !u!61 &1196570909
 BoxCollider2D:
   m_ObjectHideFlags: 0
@@ -687,6 +686,21 @@ Animator:
   m_AllowConstantClipSamplingOptimization: 1
   m_KeepAnimatorStateOnDisable: 0
   m_WriteDefaultValuesOnDisable: 0
+--- !u!114 &1196570912
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1196570902}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 382785ea7d1aa874d9f53c4b0f10ba8a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  verticalDrag: 0.1
+  gravityScale: 1
+  hitbox: {fileID: 1196570909}
 --- !u!1 &1216882819
 GameObject:
   m_ObjectHideFlags: 0

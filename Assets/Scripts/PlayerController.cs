@@ -61,14 +61,18 @@ public class PlayerController : MonoBehaviour
         float xRaw = Input.GetAxisRaw("Horizontal");
         float xNewVelocity = horizontalSpeed * xRaw;
 
-        //Jumping.
-        float yNewVelocity = platPhysics.GetVelocity().y; //If not jumping, keep existing vertical momentum.
+        //Vertical movement. Jumping or slopes.
+        float yNewVelocity = platPhysics.GetVelocity().y; //By default, keep existing vertical momentum.
         if(jumpEnabled && jumpInput)
         {
             yNewVelocity = jumpSpeed;
             jumping = true;
             jumpInput = false; //Indicate input has been processed.
             jumpEnabled = false;
+        }
+        else if(platPhysics.IsOnSlope())
+        {
+            //yNewVelocity = -4.0f;
         }
 
         //Apply movement.

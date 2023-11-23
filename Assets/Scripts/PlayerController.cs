@@ -70,10 +70,6 @@ public class PlayerController : MonoBehaviour
             jumpInput = false; //Indicate input has been processed.
             jumpEnabled = false;
         }
-        else if(platPhysics.IsOnSlope())
-        {
-            //yNewVelocity = -4.0f;
-        }
 
         //Apply movement.
         platPhysics.SetVelocity(xNewVelocity, yNewVelocity);

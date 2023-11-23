@@ -16,7 +16,7 @@ public class PlatformerPhysics : MonoBehaviour
 
     //Surface contacts.
     private bool grounded = false; //True if the entity is on the ground.
-    private bool slopedGround = false; //True if the entity is on sloped ground.
+    private bool slopedGround = false; //True if sticking to sloped ground.
 
     //Collisions.
     private const float SURFACE_CHECK_INSET = 0.1f; //Surface check raycasts should start inset from the bounds of the collider.
@@ -56,11 +56,6 @@ public class PlatformerPhysics : MonoBehaviour
     public bool IsGrounded()
     {
         return grounded;
-    }
-
-    public bool IsOnSlope()
-    {
-        return slopedGround;
     }
 
     public Vector2 GetVelocity()
@@ -103,8 +98,7 @@ public class PlatformerPhysics : MonoBehaviour
             // entity was grounded last frame and isn't jumping or similar, check for sloped ground
             // below and move to stay attached to it if needed.
             //(This doesn't account for sloped ceilings, only floors.)
-            //MoveCollideY(0.1f, false);
-            StickToSlope();
+            //StickToSlope();
         }
 
         bool prevGrounded = grounded;
@@ -173,17 +167,26 @@ public class PlatformerPhysics : MonoBehaviour
                 bool collided = MoveCollideY(ySmallMove, upward);
                 yAmount = collided ? 0.0f : yAmount - ySmallMove;
             }
+            else if(yMove == 0.0f)
+            {
+                StickToSlope();
+            }
         }
     }
 
     //If there is a slope below the entity (within tolerance), move vertically to it.
     private void StickToSlope()
     {
-        CollisionInfo slopeCheck = TestGroundCollisionEx(SLOPE_CHECK_DISTANCE);
+        CollisionInfo groundCheck = TestGroundCollisionEx(MOVE_UNIT);
+        bool prevSloped = slopedGround;
+        slopedGround = groundCheck != null && groundCheck.angle != 0.0f;
 
-        if(slopeCheck != null && slopeCheck.angle != 0.0f)
+        //Check if over sloped ground, or if the entity just stepped off of a slope.
+        //(In the latter case the entity reached the foot of a ramp and still needs to move down
+        // to meet the flat ground at the bottom.)
+        if(slopedGround || (groundCheck != null && prevSloped))
         {
-            transform.Translate(0.0f, -slopeCheck.distance, 0.0f);
+            transform.Translate(0.0f, -groundCheck.distance, 0.0f);
         }
     }
 
@@ -192,8 +195,7 @@ public class PlatformerPhysics : MonoBehaviour
     {
         //Collision checks in the cardinal directions.
         bool ceilingHit = TestFloorCollision(SURFACE_CHECK_DISTANCE, true) < Mathf.Infinity;
-        CollisionInfo groundCheck = TestGroundCollisionEx(SURFACE_CHECK_DISTANCE);
-        bool groundHit = groundCheck != null;
+        bool groundHit = TestFloorCollision(SURFACE_CHECK_DISTANCE, false) < Mathf.Infinity;
         bool rightWallHit = TestWallCollision(SURFACE_CHECK_DISTANCE, true) < Mathf.Infinity;
         bool leftWallHit = TestWallCollision(SURFACE_CHECK_DISTANCE, false) < Mathf.Infinity;
 
@@ -206,7 +208,6 @@ public class PlatformerPhysics : MonoBehaviour
 
         //Update contacts. A contact isn't valid if the entity is moving away from it.
         grounded = groundHit && velocity.y < 0.01f;
-        slopedGround = grounded && groundCheck.angle != 0.0f;
     }
 
     //Move horizontally by the given amount. If this would collide, stop short.
@@ -232,7 +233,6 @@ public class PlatformerPhysics : MonoBehaviour
     {
         //Check for collision, and cap movement if it's collided.
         float colDistance = TestFloorCollision(moveDistance, upward);
-        //Debug.Log(hitbox.bounds.center);
         bool collided = colDistance < moveDistance;
         moveDistance = collided ? colDistance : moveDistance;
 
@@ -314,8 +314,6 @@ public class PlatformerPhysics : MonoBehaviour
             direction,
             SURFACE_CHECK_INSET + distance,
             SURFACE_LAYER_MASK);
-
-        //Debug.Log("Origin: " + origin + " | Direction: " + direction + " | Distance: " + distance + " | tolerance: " + angleTolerance);
         
         //Check if it hit a surface, and if so, that the surface angle is within tolerance.
         //(Ignore hits from colliders inside the ray's origin, as no normal is computed in that instance.)

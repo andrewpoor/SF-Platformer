@@ -98,7 +98,7 @@ public class PlatformerPhysics : MonoBehaviour
             // entity was grounded last frame and isn't jumping or similar, check for sloped ground
             // below and move to stay attached to it if needed.
             //(This doesn't account for sloped ceilings, only floors.)
-            //StickToSlope();
+            StickToSlope();
         }
 
         bool prevGrounded = grounded;
@@ -157,19 +157,15 @@ public class PlatformerPhysics : MonoBehaviour
             if(xAmount > 0.0f)
             {
                 float xSmallMove = xAmount > MOVE_UNIT ? MOVE_UNIT : xAmount;
-                bool collided = MoveCollideX(xSmallMove, rightward);
-                xAmount = collided ? 0.0f : xAmount - xSmallMove;
+                MoveCollideX(xSmallMove, rightward);
+                xAmount -= xSmallMove;
             }
 
             if(yAmount > 0.0f)
             {
                 float ySmallMove = yAmount > MOVE_UNIT ? MOVE_UNIT : yAmount;
-                bool collided = MoveCollideY(ySmallMove, upward);
-                yAmount = collided ? 0.0f : yAmount - ySmallMove;
-            }
-            else if(yMove == 0.0f)
-            {
-                StickToSlope();
+                MoveCollideY(ySmallMove, upward);
+                yAmount -= ySmallMove;
             }
         }
     }
@@ -177,7 +173,7 @@ public class PlatformerPhysics : MonoBehaviour
     //If there is a slope below the entity (within tolerance), move vertically to it.
     private void StickToSlope()
     {
-        CollisionInfo groundCheck = TestGroundCollisionEx(MOVE_UNIT);
+        CollisionInfo groundCheck = TestGroundCollisionEx(SLOPE_CHECK_DISTANCE);
         bool prevSloped = slopedGround;
         slopedGround = groundCheck != null && groundCheck.angle != 0.0f;
 

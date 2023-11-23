@@ -15,7 +15,10 @@ public class PlatformerPhysics : MonoBehaviour
     public BoxCollider2D hitbox;
 
     //Surface contacts.
-    private bool grounded = false; //True if the entity is on the ground.
+    private bool groundContact = false; //True if the entity is on the ground.
+    private bool ceilingContact = false;
+    private bool rightWallContact = false;
+    private bool leftWallContact = false;
     private bool slopedGround = false; //True if sticking to sloped ground.
 
     //Collisions.
@@ -51,11 +54,6 @@ public class PlatformerPhysics : MonoBehaviour
         CacheHitboxData();
 
         UpdatePhysics();
-    }
-
-    public bool IsGrounded()
-    {
-        return grounded;
     }
 
     public Vector2 GetVelocity()
@@ -101,15 +99,15 @@ public class PlatformerPhysics : MonoBehaviour
             StickToSlope();
         }
 
-        bool prevGrounded = grounded;
+        bool prevGrounded = groundContact;
         CheckTouchingSurfaces();
 
         //Send messages if just landed or left the ground.
-        if(prevGrounded && !grounded)
+        if(prevGrounded && !groundContact)
         {
             gameObject.SendMessage("OnLeaveGround");
         }
-        else if(!prevGrounded && grounded)
+        else if(!prevGrounded && groundContact)
         {
             gameObject.SendMessage("OnLanded");
         }
@@ -117,7 +115,8 @@ public class PlatformerPhysics : MonoBehaviour
         //Recalculate forces (gravity, drag).
         float yNewVelocity = 0.0f;
         float yNewAcceleration = 0.0f;
-        if(!grounded)
+        bool bonk = ceilingContact && velocity.y > 0.0f; //Hitting the ceiling means upwards velocity is stopped.
+        if(!groundContact && !bonk)
         {
             //Only care about gravity when off the ground.
             float drag = velocity.y * velocity.y * verticalDrag * ((velocity.y > 0.0f) ? -1 : 1);
@@ -203,7 +202,10 @@ public class PlatformerPhysics : MonoBehaviour
         }
 
         //Update contacts. A contact isn't valid if the entity is moving away from it.
-        grounded = groundHit && velocity.y < 0.01f;
+        ceilingContact = ceilingHit && velocity.y > 0.01f;
+        groundContact = groundHit && velocity.y < 0.01f;
+        rightWallContact = rightWallHit && velocity.x > 0.01f;
+        leftWallContact = leftWallHit && velocity.x < 0.01f;
     }
 
     //Move horizontally by the given amount. If this would collide, stop short.

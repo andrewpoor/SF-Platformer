@@ -13,8 +13,11 @@ public class PlayerController : MonoBehaviour
     private bool jumpInput = false; //True indicates a jump input is waiting to be processed.
     private const float JUMP_INPUT_BUFFER_TIME = 0.15f;
 
-    //Misc properties
-    private bool jumping = false; //Signals the animator to jump.
+    //Animation signals
+    private bool jumping = false;
+    private bool falling = false; 
+    private bool landing = false;
+
     private bool jumpEnabled = false;
 
     void Start()
@@ -88,13 +91,19 @@ public class PlayerController : MonoBehaviour
         }
 
         animator.SetBool("Jumping", jumping);
-        jumping = false;
+        jumping = false; //Single trigger.
 
-        animator.SetBool("Falling", !platPhysics.IsGrounded());
+        animator.SetBool("Falling", falling);
+
+        animator.SetBool("Landing", landing);
+        landing = false; //Single trigger.
+
     }
 
     public void OnLeaveGround()
     {
+        falling = true;
+
         //Wait before disabling the jump. This provides a small window
         // during which the player can still jump after falling off an edge.
         StartCoroutine(DelayJumpEnabled(false));
@@ -102,6 +111,9 @@ public class PlayerController : MonoBehaviour
 
     public void OnLanded()
     {
+        falling = false;
+        landing = true;
+
         //Wait before enabling the jump. This adds a brief delay, to allow
         // collision physics to act first.
         StartCoroutine(DelayJumpEnabled(true));

@@ -9,10 +9,12 @@ using UnityEngine;
  */
 public class PlatformerPhysics : MonoBehaviour
 {
+    //References.
+    public BoxCollider2D hitbox;
+
+    //Parameters.
     public float verticalDrag = 0.1f;
     public float gravityScale = 1.0f;
-
-    public BoxCollider2D hitbox;
 
     //Surface contacts.
     private bool groundContact = false; //True if the entity is on the ground.
@@ -37,6 +39,10 @@ public class PlatformerPhysics : MonoBehaviour
     private float hitboxBottomOffset;
     private float hitboxLeftOffset;
     private float hitboxRightOffset;
+
+    //Control whether messages are sent on collision events.
+    private bool groundMessages = false;
+    private bool wallMessages = false;
 
     //Movement.
     private const float GRAVITY_CONST = -9.81f;
@@ -72,6 +78,28 @@ public class PlatformerPhysics : MonoBehaviour
         velocity.y = yNewVelocity;
     }
 
+    //Set strength of gravity. 1.0 is the default.
+    public void SetGravityScale(float scale)
+    {
+        gravityScale = scale;
+    }
+
+    //Tell this behaviour to send messages for ground collisions.
+    //The Game Object must implement the appropriate message receiving functions.
+    //(These are OnTouchGround and OnLeaveGround.)
+    public void EnableGroundMessages(bool enabled = true)
+    {
+        groundMessages = enabled;
+    }
+
+    //Tell this behaviour to send messages for wall collisions.
+    //The Game Object must implement the appropriate message receiving functions.
+    //(These are OnTouchWall and OnLeaveWall.)
+    public void EnableWallMessages(bool enabled = true)
+    {
+        wallMessages = enabled;
+    }
+
     //Store current values for hitbox information.
     private void CacheHitboxData()
     {
@@ -100,16 +128,42 @@ public class PlatformerPhysics : MonoBehaviour
         }
 
         bool prevGrounded = groundContact;
+        bool prevRightWall = rightWallContact;
+        bool prevLeftWall = leftWallContact;
         CheckTouchingSurfaces();
 
-        //Send messages if just landed or left the ground.
-        if(prevGrounded && !groundContact)
+        //Send messages for starting or ending surface contacts.
+        if(groundMessages)
         {
-            gameObject.SendMessage("OnLeaveGround");
+            if(prevGrounded && !groundContact)
+            {
+                gameObject.SendMessage("OnLeaveGround");
+            }
+            else if(!prevGrounded && groundContact)
+            {
+                gameObject.SendMessage("OnTouchGround");
+            }
         }
-        else if(!prevGrounded && groundContact)
+        
+        if(wallMessages)
         {
-            gameObject.SendMessage("OnLanded");
+            if(prevRightWall && !rightWallContact)
+            {
+                gameObject.SendMessage("OnLeaveWall", true);
+            }
+            else if(!prevRightWall && rightWallContact)
+            {
+                gameObject.SendMessage("OnTouchWall", true);
+            }
+
+            if(prevLeftWall && !leftWallContact)
+            {
+                gameObject.SendMessage("OnLeaveWall", false);
+            }
+            else if(!prevLeftWall && leftWallContact)
+            {
+                gameObject.SendMessage("OnTouchWall", false);
+            }
         }
 
         //Recalculate forces (gravity, drag).
@@ -202,9 +256,9 @@ public class PlatformerPhysics : MonoBehaviour
         }
 
         //Update contacts. A contact isn't valid if the entity is moving away from it.
-        ceilingContact = ceilingHit && velocity.y > 0.01f;
+        ceilingContact = ceilingHit && velocity.y > -0.01f;
         groundContact = groundHit && velocity.y < 0.01f;
-        rightWallContact = rightWallHit && velocity.x > 0.01f;
+        rightWallContact = rightWallHit && velocity.x > -0.01f;
         leftWallContact = leftWallHit && velocity.x < 0.01f;
     }
 

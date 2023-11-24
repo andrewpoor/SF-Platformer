@@ -3,26 +3,46 @@ using UnityEngine;
 
 public class PlayerController : MonoBehaviour
 {
-    public float horizontalSpeed = 2.5f;
-    public float jumpSpeed = 4.0f;
-
+    //References.
     public Animator animator;
     public PlatformerPhysics platPhysics;
 
-    //Inputs
-    private bool jumpInput = false; //True indicates a jump input is waiting to be processed.
-    private const float JUMP_INPUT_BUFFER_TIME = 0.15f;
+    [System.Serializable]
+    private class MovementParameters
+    {
+        public float horizontalSpeed = 2.5f;
+        public float jumpSpeed = 4.0f;
+        public float wallSlideSpeed = 0.5f;
+        public float wallJumpDuration = 0.15f;
+        public float wallJumpVerticalSpeed = 3.5f;
+        public float wallJumpHorizontalSpeed = 2.5f;
+    }
 
-    //Animation signals
+    [SerializeField]
+    private MovementParameters moveParams = new();
+
+    //Inputs.
+    private bool jumpInput = false; //True indicates a jump input is waiting to be processed.
+    private const float JUMP_INPUT_BUFFER_TIME = 0.1f;
+
+    //Animation signals.
     private bool jumping = false;
-    private bool falling = false; 
+    private bool falling = true; 
     private bool landing = false;
 
-    private bool jumpEnabled = false;
+    //Misc.
+    private bool groundJumpEnabled = false;
+    private bool wallJumpEnabled = false;
+    private bool horizontalMoveEnabled = true;
+    private bool leftWallContact = false;
+    private bool rightWallContact = false;
 
     void Start()
     {
         StartCoroutine(ProcessJumpInputs());
+
+        platPhysics.EnableGroundMessages();
+        platPhysics.EnableWallMessages();
     }
 
     void Update()
@@ -57,25 +77,62 @@ public class PlayerController : MonoBehaviour
         }
     }
 
-    //Respond to user input and react to physics calculations.
+    //Respond to user input and determine velocity for the next frame.
     private void UpdateMovement()
     {
-        //Horizontal movement. Only move when input is pressed.
-        float xRaw = Input.GetAxisRaw("Horizontal");
-        float xNewVelocity = horizontalSpeed * xRaw;
+        float xNewVelocity = platPhysics.GetVelocity().x;
+        float yNewVelocity = platPhysics.GetVelocity().y;
+        float xRawInput = Input.GetAxisRaw("Horizontal");
 
-        //Vertical movement. Jumping or slopes.
-        float yNewVelocity = platPhysics.GetVelocity().y; //By default, keep existing vertical momentum.
-        if(jumpEnabled && jumpInput)
+        //Wall sliding. Slide slowly if pressed against a wall while falling.
+        bool wallSliding = falling && yNewVelocity < 0.0f && ((rightWallContact && xRawInput > 0.01f) || (leftWallContact && xRawInput < -0.01f));
+        if(wallSliding)
         {
-            yNewVelocity = jumpSpeed;
+            xNewVelocity = 0.0f;
+            yNewVelocity = -moveParams.wallSlideSpeed;
+            platPhysics.SetGravityScale(0.0f);
+        }
+        else
+        {
+            platPhysics.SetGravityScale(1.0f);
+        }
+
+        //Horizontal movement.
+        if(horizontalMoveEnabled && !wallSliding)
+        {
+            xNewVelocity = moveParams.horizontalSpeed * xRawInput;
+        }
+
+        //Jumping.
+        if(groundJumpEnabled && jumpInput)
+        {
+            yNewVelocity = moveParams.jumpSpeed;
             jumping = true;
-            jumpInput = false; //Indicate input has been processed.
-            jumpEnabled = false;
+            jumpInput = false; //Process the input.
+            groundJumpEnabled = false;
+        }
+        else if(wallJumpEnabled && jumpInput)
+        {
+            xNewVelocity = rightWallContact ? -moveParams.wallJumpHorizontalSpeed : moveParams.wallJumpHorizontalSpeed;
+            yNewVelocity = moveParams.wallJumpVerticalSpeed;
+            jumpInput = false; //Process the input.
+            wallJumpEnabled = false;
+            StartCoroutine(TempDisableHorizontalInput());
         }
 
         //Apply movement.
         platPhysics.SetVelocity(xNewVelocity, yNewVelocity);
+    }
+
+    //Temporarily disable horizontal input. The player will continue to move with
+    // any existing horizontal velocity.
+    private IEnumerator TempDisableHorizontalInput()
+    {
+        horizontalMoveEnabled = false;
+
+        yield return new WaitForSeconds(moveParams.wallJumpDuration);
+
+        horizontalMoveEnabled = true;
     }
 
     private void UpdateAnimations()
@@ -100,30 +157,58 @@ public class PlayerController : MonoBehaviour
 
     }
 
-    public void OnLeaveGround()
+    void OnLeaveGround()
     {
         falling = true;
 
         //Wait before disabling the jump. This provides a small window
         // during which the player can still jump after falling off an edge.
-        StartCoroutine(DelayJumpEnabled(false));
+        StartCoroutine(DelayGroundJumpEnabled(false));
     }
 
-    public void OnLanded()
+    void OnTouchGround()
     {
         falling = false;
         landing = true;
 
         //Wait before enabling the jump. This adds a brief delay, to allow
         // collision physics to act first.
-        StartCoroutine(DelayJumpEnabled(true));
+        StartCoroutine(DelayGroundJumpEnabled(true));
+    }
+
+    void OnLeaveWall(bool rightWall)
+    {
+        if(rightWall)
+        {
+            rightWallContact = false;
+        }
+        else
+        {
+            leftWallContact = false;
+        }
+
+        wallJumpEnabled = false;
+    }
+
+    void OnTouchWall(bool rightWall)
+    {
+        if(rightWall)
+        {
+            rightWallContact = true;
+        }
+        else
+        {
+            leftWallContact = true;
+        }
+
+        wallJumpEnabled = true;
     }
 
     //Wait before enabling or disabling the jump.
-    private IEnumerator DelayJumpEnabled(bool enabled)
+    private IEnumerator DelayGroundJumpEnabled(bool enabled)
     {
         yield return new WaitForSeconds(JUMP_INPUT_BUFFER_TIME);
 
-        jumpEnabled = enabled;
+        groundJumpEnabled = enabled;
     }
 }

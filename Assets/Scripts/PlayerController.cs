@@ -29,6 +29,7 @@ public class PlayerController : MonoBehaviour
     private bool jumping = false;
     private bool falling = true; 
     private bool landing = false;
+    private bool crouching = false;
 
     //Misc.
     private bool groundJumpEnabled = false;
@@ -84,6 +85,24 @@ public class PlayerController : MonoBehaviour
         float xNewVelocity = platPhysics.GetVelocity().x;
         float yNewVelocity = platPhysics.GetVelocity().y;
         float xRawInput = Input.GetAxisRaw("Horizontal");
+
+        //Crouching. Only crouch when grounded.
+        if(!falling)
+        {
+            if(Input.GetAxisRaw("Vertical") < 0.0f)
+            {
+                //Crouch.
+                crouching = true;
+                horizontalMoveEnabled = false;
+                xNewVelocity = 0.0f;
+            }
+            else
+            {
+                //Uncrouch.
+                crouching = false;
+                horizontalMoveEnabled = true;
+            }
+        }
 
         //Wall sliding. Slide slowly if pressed against a wall while falling.
         bool wallSliding = falling && yNewVelocity < 0.0f && ((rightWallContact && xRawInput > 0.01f) || (leftWallContact && xRawInput < -0.01f));
@@ -181,6 +200,7 @@ public class PlayerController : MonoBehaviour
         animator.SetBool("Landing", landing);
         landing = false; //Single trigger.
 
+        animator.SetBool("Crouching", crouching);
     }
 
     void OnLeaveFloor(bool isCeiling)

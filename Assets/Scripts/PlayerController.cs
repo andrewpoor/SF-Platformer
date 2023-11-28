@@ -16,6 +16,9 @@ public class PlayerController : MonoBehaviour
         public float wallJumpDuration = 0.15f;
         public float wallJumpVerticalSpeed = 3.5f;
         public float wallJumpHorizontalSpeed = 2.5f;
+        public float superJumpSpeed = 6.0f;
+        public float superJumpPrepareTime = 0.5f;
+        public float superJumpMoveModifier = 0.3f;
     }
 
     [SerializeField]
@@ -26,18 +29,24 @@ public class PlayerController : MonoBehaviour
     private const float JUMP_INPUT_BUFFER_TIME = 0.1f;
 
     //Animation signals.
-    private bool jumping = false;
+    private bool jumpTrigger = false;
     private bool falling = true; 
-    private bool landing = false;
+    private bool landTrigger = false;
     private bool crouching = false;
+
+    //Surface contacts.
+    //These are updated during physics FixedUpdate, so might not
+    // be in sync with Update.
+    private bool ceilingContact = false;
+    private bool leftWallContact = false;
+    private bool rightWallContact = false;
 
     //Misc.
     private bool groundJumpEnabled = false;
     private bool wallJumpEnabled = false;
-    private bool horizontalMoveEnabled = true;
-    private bool ceilingContact = false;
-    private bool leftWallContact = false;
-    private bool rightWallContact = false;
+    private bool wallJumping = false;
+    private bool superJumping = false;
+    private bool superCrouching = false;
 
     void Start()
     {
@@ -87,21 +96,15 @@ public class PlayerController : MonoBehaviour
         float xRawInput = Input.GetAxisRaw("Horizontal");
 
         //Crouching. Only crouch when grounded.
-        if(!falling)
+        if(!falling && Input.GetAxisRaw("Vertical") < 0.0f)
         {
-            if(Input.GetAxisRaw("Vertical") < 0.0f)
-            {
-                //Crouch.
-                crouching = true;
-                horizontalMoveEnabled = false;
-                xNewVelocity = 0.0f;
-            }
-            else
-            {
-                //Uncrouch.
-                crouching = false;
-                horizontalMoveEnabled = true;
-            }
+            crouching = true;
+            xNewVelocity = 0.0f;
+            
+        }
+        else
+        {
+            crouching = false;
         }
 
         //Wall sliding. Slide slowly if pressed against a wall while falling.
@@ -118,27 +121,46 @@ public class PlayerController : MonoBehaviour
         }
 
         //Horizontal movement.
-        if(horizontalMoveEnabled && !wallSliding)
+        if(!wallSliding && !wallJumping && !crouching && !superCrouching)
         {
             xNewVelocity = moveParams.horizontalSpeed * xRawInput;
+
+            if(superJumping)
+            {
+                xNewVelocity *= moveParams.superJumpMoveModifier;
+            }
         }
 
         //Jumping.
-        if(groundJumpEnabled && jumpInput)
+        if(jumpInput)
         {
-            yNewVelocity = moveParams.jumpSpeed;
-            jumpInput = false; //Process the input.
-            jumping = true;
-            groundJumpEnabled = false;
-            StartCoroutine(HoldJump());
-        }
-        else if(wallJumpEnabled && jumpInput)
-        {
-            xNewVelocity = rightWallContact ? -moveParams.wallJumpHorizontalSpeed : moveParams.wallJumpHorizontalSpeed;
-            yNewVelocity = moveParams.wallJumpVerticalSpeed;
-            jumpInput = false; //Process the input.
-            wallJumpEnabled = false;
-            StartCoroutine(TempDisableHorizontalInput());
+            if(groundJumpEnabled)
+            {
+                if(crouching)
+                {
+                    //Super jump.
+                    jumpInput = false; //Process the input.
+                    StartCoroutine(SuperJump());
+                }
+                else
+                {
+                    //Normal ground jump.
+                    yNewVelocity = moveParams.jumpSpeed;
+                    jumpInput = false; //Process the input.
+                    jumpTrigger = true;
+                    groundJumpEnabled = false;
+                    StartCoroutine(HoldJump());
+                }
+            }
+            else if(wallJumpEnabled && falling && !superJumping)
+            {
+                //Wall jump.
+                xNewVelocity = rightWallContact ? -moveParams.wallJumpHorizontalSpeed : moveParams.wallJumpHorizontalSpeed;
+                yNewVelocity = moveParams.wallJumpVerticalSpeed;
+                jumpInput = false; //Process the input.
+                wallJumpEnabled = false;
+                StartCoroutine(WallJump());
+            }
         }
 
         //Apply movement.
@@ -148,7 +170,7 @@ public class PlayerController : MonoBehaviour
     //While the jump input is held, maintain the jump until released, or the jump is finished.
     private IEnumerator HoldJump()
     {   
-        //First wait for a physics tick, to allow the jump to begin.
+        //Wait for a physics tick, to allow the jump to begin.
         yield return new WaitForFixedUpdate();
 
         while(Input.GetAxisRaw("Jump") > 0.1f)
@@ -169,15 +191,54 @@ public class PlayerController : MonoBehaviour
         platPhysics.SetVelocityY(0.0f);
     }
 
-    //Temporarily disable horizontal input. The player will continue to move with
-    // any existing horizontal velocity.
-    private IEnumerator TempDisableHorizontalInput()
+    //Special jump. The player character stops for a duration to build power,
+    // then performs an extra-high jump straight upwards.
+    private IEnumerator SuperJump()
     {
-        horizontalMoveEnabled = false;
+        groundJumpEnabled = false;
+        superCrouching = true;
 
-        yield return new WaitForSeconds(moveParams.wallJumpDuration);
+        yield return new WaitForSeconds(moveParams.superJumpPrepareTime);
 
-        horizontalMoveEnabled = true;
+        platPhysics.SetVelocityY(moveParams.superJumpSpeed);
+        jumpTrigger = true;
+        superJumping = true;
+        superCrouching = false;
+
+        //Wait for a physics tick, to allow the jump to begin.
+        yield return new WaitForFixedUpdate();
+
+        //Keep horizontal movement disabled during the super jump.
+        while(!ceilingContact && falling && platPhysics.GetVelocity().y > 0.0f)
+        {
+            yield return null;
+        }
+
+        superJumping = false;
+    }
+
+    //During a wall jump, temporarily disable horizontal input.
+    //The player will continue to move with any existing horizontal velocity.
+    private IEnumerator WallJump()
+    {
+        wallJumping = true;
+        double curTime = Time.realtimeSinceStartupAsDouble;
+
+        //Wait for a physics tick, to allow the jump to begin.
+        yield return new WaitForFixedUpdate();
+
+        //Start timer accounting for the fixed update wait.
+        float timer = (float)(Time.realtimeSinceStartupAsDouble - curTime);
+
+        //Wait until wall jump is finished.
+        while(!rightWallContact && !leftWallContact && timer < moveParams.wallJumpDuration)
+        {
+            yield return null;
+
+            timer += Time.deltaTime;
+        }
+
+        wallJumping = false;
     }
 
     private void UpdateAnimations()
@@ -186,21 +247,26 @@ public class PlayerController : MonoBehaviour
         animator.SetFloat("HorizontalMove", Mathf.Abs(rawX));
 
         //Flip the sprite if moving the other direction.
-        if((rawX > 0.1f && transform.localScale.x < 0.0f) || (rawX < -0.1f && transform.localScale.x > 0.0f))
+        bool changeDirection = 
+                (rawX > 0.1f && transform.localScale.x < 0.0f) || 
+                (rawX < -0.1f && transform.localScale.x > 0.0f);
+        if(changeDirection && !superCrouching)
         {
             Vector3 curScale = transform.localScale;
             transform.localScale = new Vector3(-curScale.x, curScale.y, curScale.z);
         }
 
-        animator.SetBool("Jumping", jumping);
-        jumping = false; //Single trigger.
+        animator.SetBool("Jumping", jumpTrigger);
+        jumpTrigger = false; //Single trigger.
 
         animator.SetBool("Falling", falling);
 
-        animator.SetBool("Landing", landing);
-        landing = false; //Single trigger.
+        animator.SetBool("Landing", landTrigger);
+        landTrigger = false; //Single trigger.
 
         animator.SetBool("Crouching", crouching);
+
+        animator.SetBool("PrepareSuperJump", superCrouching);
     }
 
     void OnLeaveFloor(bool isCeiling)
@@ -228,7 +294,7 @@ public class PlayerController : MonoBehaviour
         else //Landed on the ground.
         {
             falling = false;
-            landing = true;
+            landTrigger = true;
 
             //Wait before enabling the jump. This adds a brief delay, to allow
             // collision physics to act first.

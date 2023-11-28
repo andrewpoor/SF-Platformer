@@ -755,6 +755,9 @@ MonoBehaviour:
     wallJumpDuration: 0.15
     wallJumpVerticalSpeed: 3.5
     wallJumpHorizontalSpeed: 2.5
+    superJumpSpeed: 6
+    superJumpPrepareTime: 0.5
+    superJumpMoveModifier: 0.3
 --- !u!61 &1196570909
 BoxCollider2D:
   m_ObjectHideFlags: 0

@@ -34,6 +34,7 @@ public class PlayerController : MonoBehaviour
     private bool groundJumpEnabled = false;
     private bool wallJumpEnabled = false;
     private bool horizontalMoveEnabled = true;
+    private bool ceilingContact = false;
     private bool leftWallContact = false;
     private bool rightWallContact = false;
 
@@ -41,7 +42,7 @@ public class PlayerController : MonoBehaviour
     {
         StartCoroutine(ProcessJumpInputs());
 
-        platPhysics.EnableGroundMessages();
+        platPhysics.EnableFloorMessages();
         platPhysics.EnableWallMessages();
     }
 
@@ -107,9 +108,10 @@ public class PlayerController : MonoBehaviour
         if(groundJumpEnabled && jumpInput)
         {
             yNewVelocity = moveParams.jumpSpeed;
-            jumping = true;
             jumpInput = false; //Process the input.
+            jumping = true;
             groundJumpEnabled = false;
+            StartCoroutine(HoldJump());
         }
         else if(wallJumpEnabled && jumpInput)
         {
@@ -122,6 +124,30 @@ public class PlayerController : MonoBehaviour
 
         //Apply movement.
         platPhysics.SetVelocity(xNewVelocity, yNewVelocity);
+    }
+
+    //While the jump input is held, maintain the jump until released, or the jump is finished.
+    private IEnumerator HoldJump()
+    {   
+        //First wait for a physics tick, to allow the jump to begin.
+        yield return new WaitForFixedUpdate();
+
+        while(Input.GetAxisRaw("Jump") > 0.1f)
+        {
+            //Check if the jump has finished.
+            if(ceilingContact || !falling || platPhysics.GetVelocity().y <= 0.0f)
+            {
+                //Jump finished naturally, so no need to do anything else.
+                yield break;
+            }
+            else
+            {
+                yield return null;
+            }
+        }
+
+        //Abort jump if input is released before the jump is finished.
+        platPhysics.SetVelocityY(0.0f);
     }
 
     //Temporarily disable horizontal input. The player will continue to move with
@@ -157,28 +183,42 @@ public class PlayerController : MonoBehaviour
 
     }
 
-    void OnLeaveGround()
+    void OnLeaveFloor(bool isCeiling)
     {
-        falling = true;
+        if(isCeiling)
+        {
+            ceilingContact = false;
+        }
+        else //Left the ground.
+        {
+            falling = true;
 
-        //Wait before disabling the jump. This provides a small window
-        // during which the player can still jump after falling off an edge.
-        StartCoroutine(DelayGroundJumpEnabled(false));
+            //Wait before disabling the jump. This provides a small window
+            // during which the player can still jump after falling off an edge.
+            StartCoroutine(DelayGroundJumpEnabled(false));
+        }
     }
 
-    void OnTouchGround()
+    void OnTouchFloor(bool isCeiling)
     {
-        falling = false;
-        landing = true;
+        if(isCeiling)
+        {
+            ceilingContact = true;
+        }
+        else //Landed on the ground.
+        {
+            falling = false;
+            landing = true;
 
-        //Wait before enabling the jump. This adds a brief delay, to allow
-        // collision physics to act first.
-        StartCoroutine(DelayGroundJumpEnabled(true));
+            //Wait before enabling the jump. This adds a brief delay, to allow
+            // collision physics to act first.
+            StartCoroutine(DelayGroundJumpEnabled(true));
+        }
     }
 
-    void OnLeaveWall(bool rightWall)
+    void OnLeaveWall(bool isRightWall)
     {
-        if(rightWall)
+        if(isRightWall)
         {
             rightWallContact = false;
         }
@@ -190,9 +230,9 @@ public class PlayerController : MonoBehaviour
         wallJumpEnabled = false;
     }
 
-    void OnTouchWall(bool rightWall)
+    void OnTouchWall(bool isRightWall)
     {
-        if(rightWall)
+        if(isRightWall)
         {
             rightWallContact = true;
         }

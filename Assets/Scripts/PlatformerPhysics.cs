@@ -41,13 +41,13 @@ public class PlatformerPhysics : MonoBehaviour
     private float hitboxRightOffset;
 
     //Control whether messages are sent on collision events.
-    private bool groundMessages = false;
+    private bool floorMessages = false;
     private bool wallMessages = false;
 
     //Movement.
     private const float GRAVITY_CONST = -9.81f;
-    private Vector3 acceleration = new Vector3(0.0f, 0.0f, 0.0f);
-    private Vector3 velocity = new Vector3(0.0f, 0.0f, 0.0f);
+    public Vector3 acceleration = new Vector3(0.0f, 0.0f, 0.0f);
+    public Vector3 velocity = new Vector3(0.0f, 0.0f, 0.0f);
 
     private class CollisionInfo
     {
@@ -71,10 +71,21 @@ public class PlatformerPhysics : MonoBehaviour
     {
         velocity = newVelocity;
     }
+    
 
     public void SetVelocity(float xNewVelocity, float yNewVelocity)
     {
         velocity.x = xNewVelocity;
+        velocity.y = yNewVelocity;
+    }
+
+    public void SetVelocityX(float xNewVelocity)
+    {
+        velocity.x = xNewVelocity;
+    }
+
+    public void SetVelocityY(float yNewVelocity)
+    {
         velocity.y = yNewVelocity;
     }
 
@@ -84,12 +95,12 @@ public class PlatformerPhysics : MonoBehaviour
         gravityScale = scale;
     }
 
-    //Tell this behaviour to send messages for ground collisions.
+    //Tell this behaviour to send messages for ground and ceiling collisions.
     //The Game Object must implement the appropriate message receiving functions.
-    //(These are OnTouchGround and OnLeaveGround.)
-    public void EnableGroundMessages(bool enabled = true)
+    //(These are OnTouchFloorand OnLeaveFloor.)
+    public void EnableFloorMessages(bool enabled = true)
     {
-        groundMessages = enabled;
+        floorMessages = enabled;
     }
 
     //Tell this behaviour to send messages for wall collisions.
@@ -127,21 +138,31 @@ public class PlatformerPhysics : MonoBehaviour
             StickToSlope();
         }
 
+        bool prevCeiling = ceilingContact;
         bool prevGrounded = groundContact;
         bool prevRightWall = rightWallContact;
         bool prevLeftWall = leftWallContact;
         CheckTouchingSurfaces();
 
         //Send messages for starting or ending surface contacts.
-        if(groundMessages)
+        if(floorMessages)
         {
+            if(prevCeiling && !ceilingContact)
+            {
+                gameObject.SendMessage("OnLeaveFloor", true);
+            }
+            else if(!prevCeiling && ceilingContact)
+            {
+                gameObject.SendMessage("OnTouchFloor", true);
+            }
+
             if(prevGrounded && !groundContact)
             {
-                gameObject.SendMessage("OnLeaveGround");
+                gameObject.SendMessage("OnLeaveFloor", false);
             }
             else if(!prevGrounded && groundContact)
             {
-                gameObject.SendMessage("OnTouchGround");
+                gameObject.SendMessage("OnTouchFloor", false);
             }
         }
         

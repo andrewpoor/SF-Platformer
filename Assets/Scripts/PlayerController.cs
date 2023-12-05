@@ -1,4 +1,6 @@
+using System;
 using System.Collections;
+using System.Collections.Specialized;
 using UnityEngine;
 
 public class PlayerController : MonoBehaviour
@@ -19,24 +21,36 @@ public class PlayerController : MonoBehaviour
         public float superJumpSpeed = 6.0f;
         public float superJumpPrepareTime = 0.5f;
         public float superJumpMoveModifier = 0.3f;
+        public float dashSpeed = 8.0f;
+        public float dashDuration = 0.2f;
+        public float dashRepeatDelay = 0.5f;
     }
 
     [SerializeField]
     private MovementParameters moveParams = new();
 
     //Inputs.
-    private bool jumpInput = false; //True indicates a jump input is waiting to be processed.
-    private const float JUMP_INPUT_BUFFER_TIME = 0.1f;
+    private InputButton inputs = 0; //Bitflags. A 'true' flag indicates the input has been pressed and is awaiting a response.
+    private const float INPUT_BUFFER_TIME = 0.1f;
+
+    [Flags]
+    private enum InputButton
+    {
+        None = 0,
+        Jump = 1 << 0,
+        Dash = 1 << 1,
+        Fire = 1 << 2
+    }
 
     //Animation signals.
     private bool jumpTrigger = false;
     private bool falling = true; 
     private bool landTrigger = false;
     private bool crouching = false;
+    private bool dashing = false;
 
     //Surface contacts.
-    //These are updated during physics FixedUpdate, so might not
-    // be in sync with Update.
+    //These are updated during physics FixedUpdate, so might not be in sync with Update.
     private bool ceilingContact = false;
     private bool leftWallContact = false;
     private bool rightWallContact = false;
@@ -47,10 +61,14 @@ public class PlayerController : MonoBehaviour
     private bool wallJumping = false;
     private bool superJumping = false;
     private bool superCrouching = false;
+    private bool dashEnabled = true;
 
     void Start()
     {
-        StartCoroutine(ProcessJumpInputs());
+        foreach(InputButton button in Enum.GetValues(typeof(InputButton)))
+        {
+            StartCoroutine(ProcessButtonInputs(button));
+        }
 
         platPhysics.EnableFloorMessages();
         platPhysics.EnableWallMessages();
@@ -62,26 +80,57 @@ public class PlayerController : MonoBehaviour
         UpdateAnimations();
     }
 
-    //State machine for processing jump inputs.
-    private IEnumerator ProcessJumpInputs()
+    private void SetInputActive(InputButton button)
     {
+        inputs |= button;
+    }
+
+    private void SetInputInactive(InputButton button)
+    {
+        inputs &= ~button;
+    }
+
+    private bool IsInputActive(InputButton button)
+    {
+        return (inputs & button) == button;
+    }
+
+    //State machine for processing button inputs.
+    private IEnumerator ProcessButtonInputs(InputButton button)
+    {
+        string inputName;
+
+        //Get input name, while also checking if this is an input we care about.
+        switch(button)
+        {
+        case InputButton.Jump:
+            inputName = "Jump";
+            break;
+        case InputButton.Dash:
+            inputName = "Dash";
+            break;
+        default:
+            //Do not process this input.
+            yield break;
+        }
+
         while(true)
         {
-            //Wait until jump is pressed.
-            while(Input.GetAxisRaw("Jump") < 0.1f)
+            //Wait until button is pressed.
+            while(Input.GetAxisRaw(inputName) < 0.1f)
             {
                 yield return null;
             }
 
-            jumpInput = true;
+            SetInputActive(button);
 
             //Buffer input for a brief period. Ignore repeat presses during this time.
-            yield return new WaitForSeconds(JUMP_INPUT_BUFFER_TIME);
+            yield return new WaitForSeconds(INPUT_BUFFER_TIME);
 
-            jumpInput = false;
+            SetInputInactive(button);
 
-            //Wait until jump is released.
-            while(Input.GetAxisRaw("Jump") > 0.1f)
+            //Wait until button is released.
+            while(Input.GetAxisRaw(inputName) > 0.1f)
             {
                 yield return null;
             }
@@ -121,7 +170,14 @@ public class PlayerController : MonoBehaviour
         }
 
         //Horizontal movement.
-        if(!wallSliding && !wallJumping && !crouching && !superCrouching)
+        if(IsInputActive(InputButton.Dash) && !falling && dashEnabled)
+        {
+            //Ground dash in direction we're facing.
+            xNewVelocity = transform.localScale.x > 0.0f ? moveParams.dashSpeed : -moveParams.dashSpeed;
+            SetInputActive(InputButton.Dash); //Process the input.
+            StartCoroutine(HoldDash());
+        }
+        else if(!wallSliding && !wallJumping && !crouching && !superCrouching)
         {
             xNewVelocity = moveParams.horizontalSpeed * xRawInput;
 
@@ -132,21 +188,21 @@ public class PlayerController : MonoBehaviour
         }
 
         //Jumping.
-        if(jumpInput)
+        if(IsInputActive(InputButton.Jump))
         {
             if(groundJumpEnabled)
             {
                 if(crouching)
                 {
                     //Super jump.
-                    jumpInput = false; //Process the input.
+                    SetInputInactive(InputButton.Jump); //Process the input.
                     StartCoroutine(SuperJump());
                 }
                 else
                 {
                     //Normal ground jump.
                     yNewVelocity = moveParams.jumpSpeed;
-                    jumpInput = false; //Process the input.
+                    SetInputInactive(InputButton.Jump); //Process the input.
                     jumpTrigger = true;
                     groundJumpEnabled = false;
                     StartCoroutine(HoldJump());
@@ -157,7 +213,7 @@ public class PlayerController : MonoBehaviour
                 //Wall jump.
                 xNewVelocity = rightWallContact ? -moveParams.wallJumpHorizontalSpeed : moveParams.wallJumpHorizontalSpeed;
                 yNewVelocity = moveParams.wallJumpVerticalSpeed;
-                jumpInput = false; //Process the input.
+                SetInputInactive(InputButton.Jump); //Process the input.
                 wallJumpEnabled = false;
                 StartCoroutine(WallJump());
             }
@@ -239,6 +295,32 @@ public class PlayerController : MonoBehaviour
         }
 
         wallJumping = false;
+    }
+
+    //While the dash button is held, maintain a dash, until released or the dash is finished.
+    private IEnumerator HoldDash()
+    {
+        float timer = 0.0f;
+        dashEnabled = false;
+        dashing = true;
+
+        //Maintain dash.
+        while(Input.GetAxisRaw("Dash") > 0.1f && timer < moveParams.dashDuration)
+        {
+            //Ground dash in direction we're facing.
+            platPhysics.SetVelocityX(transform.localScale.x > 0.0f ? moveParams.dashSpeed : -moveParams.dashSpeed);
+
+            yield return null;
+
+            timer += Time.deltaTime;
+        }
+
+        dashing = false;
+
+        //Delay before player can dash again.
+        yield return new WaitForSeconds(moveParams.dashRepeatDelay);
+
+        dashEnabled = true;
     }
 
     private void UpdateAnimations()
@@ -333,7 +415,7 @@ public class PlayerController : MonoBehaviour
     //Wait before enabling or disabling the jump.
     private IEnumerator DelayGroundJumpEnabled(bool enabled)
     {
-        yield return new WaitForSeconds(JUMP_INPUT_BUFFER_TIME);
+        yield return new WaitForSeconds(INPUT_BUFFER_TIME);
 
         groundJumpEnabled = enabled;
     }

@@ -758,6 +758,9 @@ MonoBehaviour:
     superJumpSpeed: 6
     superJumpPrepareTime: 0.5
     superJumpMoveModifier: 0.3
+    dashSpeed: 8
+    dashDuration: 0.2
+    dashRepeatDelay: 0.5
 --- !u!61 &1196570909
 BoxCollider2D:
   m_ObjectHideFlags: 0

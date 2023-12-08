@@ -753,14 +753,16 @@ MonoBehaviour:
     jumpSpeed: 4
     wallSlideSpeed: 0.5
     wallJumpDuration: 0.15
-    wallJumpVerticalSpeed: 3.5
     wallJumpHorizontalSpeed: 2.5
+    wallJumpVerticalSpeed: 3.5
     superJumpSpeed: 6
     superJumpPrepareTime: 0.5
     superJumpMoveModifier: 0.3
     dashSpeed: 4
     dashDuration: 0.4
     dashRepeatDelay: 0.5
+    dashWallJumpHorizSpeed: 3
+    dashWallJumpVertSpeed: 4
 --- !u!61 &1196570909
 BoxCollider2D:
   m_ObjectHideFlags: 0
@@ -1583,7 +1585,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1719957901}
   m_LocalRotation: {x: 0, y: 0, z: 0.7071068, w: 0.7071068}
-  m_LocalPosition: {x: -4.6, y: 1.1, z: 0}
+  m_LocalPosition: {x: -3.6, y: 1.1, z: 0}
   m_LocalScale: {x: 3, y: 0.4, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []

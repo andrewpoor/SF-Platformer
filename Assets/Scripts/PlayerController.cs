@@ -15,14 +15,16 @@ public class PlayerController : MonoBehaviour
         public float jumpSpeed = 4.0f;
         public float wallSlideSpeed = 0.5f;
         public float wallJumpDuration = 0.15f;
-        public float wallJumpVerticalSpeed = 3.5f;
         public float wallJumpHorizontalSpeed = 2.5f;
+        public float wallJumpVerticalSpeed = 3.5f;
         public float superJumpSpeed = 6.0f;
         public float superJumpPrepareTime = 0.5f;
         public float superJumpMoveModifier = 0.3f;
-        public float dashSpeed = 8.0f;
-        public float dashDuration = 0.2f;
+        public float dashSpeed = 4.0f;
+        public float dashDuration = 0.4f;
         public float dashRepeatDelay = 0.5f;
+        public float dashWallJumpHorizSpeed = 3.0f;
+        public float dashWallJumpVertSpeed = 4.0f;
     }
 
     [SerializeField]
@@ -182,7 +184,7 @@ public class PlayerController : MonoBehaviour
             else if(!wallJumping && !crouching)
             {
                 float curMoveSpeed;
-                
+
                 if(superJumping)
                 {
                     curMoveSpeed = moveParams.horizontalSpeed * moveParams.superJumpMoveModifier;
@@ -226,8 +228,10 @@ public class PlayerController : MonoBehaviour
             else if(wallJumpEnabled && falling && !superJumping)
             {
                 //Wall jump.
-                xNewVelocity = rightWallContact ? -moveParams.wallJumpHorizontalSpeed : moveParams.wallJumpHorizontalSpeed;
-                yNewVelocity = moveParams.wallJumpVerticalSpeed;
+                bool dashHeld = Input.GetAxisRaw("Dash") > 0.1f;
+                float xSpeed = dashHeld ? moveParams.dashWallJumpHorizSpeed : moveParams.wallJumpHorizontalSpeed;
+                xNewVelocity = rightWallContact ? -xSpeed : xSpeed;
+                yNewVelocity = dashHeld ? moveParams.dashWallJumpVertSpeed : moveParams.wallJumpVerticalSpeed;
                 SetInputInactive(InputButton.Jump); //Process the input.
                 wallJumpEnabled = false;
                 StartCoroutine(WallJump());

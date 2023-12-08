@@ -147,7 +147,7 @@ public class PlayerController : MonoBehaviour
         float xRawInput = Input.GetAxisRaw("Horizontal");
 
         //Crouching. Only crouch when grounded.
-        if(!falling && Input.GetAxisRaw("Vertical") < 0.0f)
+        if(!falling && !dashing && Input.GetAxisRaw("Vertical") < 0.0f)
         {
             crouching = true;
             xNewVelocity = 0.0f;

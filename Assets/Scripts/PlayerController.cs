@@ -1,6 +1,5 @@
 using System;
 using System.Collections;
-using System.Collections.Specialized;
 using UnityEngine;
 
 public class PlayerController : MonoBehaviour
@@ -114,6 +113,7 @@ public class PlayerController : MonoBehaviour
             yield break;
         }
 
+        //Run state machine.
         while(true)
         {
             //Wait until button is pressed.
@@ -170,20 +170,35 @@ public class PlayerController : MonoBehaviour
         }
 
         //Horizontal movement.
-        if(IsInputActive(InputButton.Dash) && !falling && dashEnabled)
+        if(!superCrouching && !wallSliding)
         {
-            //Ground dash in direction we're facing.
-            xNewVelocity = transform.localScale.x > 0.0f ? moveParams.dashSpeed : -moveParams.dashSpeed;
-            SetInputActive(InputButton.Dash); //Process the input.
-            StartCoroutine(HoldDash());
-        }
-        else if(!wallSliding && !wallJumping && !crouching && !superCrouching)
-        {
-            xNewVelocity = moveParams.horizontalSpeed * xRawInput;
-
-            if(superJumping)
+            if(IsInputActive(InputButton.Dash) && !falling && dashEnabled)
             {
-                xNewVelocity *= moveParams.superJumpMoveModifier;
+                //Ground dash in direction we're facing.
+                xNewVelocity = transform.localScale.x > 0.0f ? moveParams.dashSpeed : -moveParams.dashSpeed;
+                SetInputActive(InputButton.Dash); //Process the input.
+                StartCoroutine(HoldDash());
+            }
+            else if(!wallJumping && !crouching)
+            {
+                float curMoveSpeed;
+                
+                if(superJumping)
+                {
+                    curMoveSpeed = moveParams.horizontalSpeed * moveParams.superJumpMoveModifier;
+                }
+                else if(falling)
+                {
+                    //If in the air and moving faster than default, keep that speed.
+                    curMoveSpeed = Mathf.Max(Mathf.Abs(xNewVelocity), moveParams.horizontalSpeed);
+                }
+                else
+                {
+                    curMoveSpeed = moveParams.horizontalSpeed;
+                }
+
+                //Apply movement direction to speed.
+                xNewVelocity = curMoveSpeed * xRawInput;
             }
         }
 
@@ -349,6 +364,8 @@ public class PlayerController : MonoBehaviour
         animator.SetBool("Crouching", crouching);
 
         animator.SetBool("PrepareSuperJump", superCrouching);
+
+        animator.SetBool("Dashing", dashing);
     }
 
     void OnLeaveFloor(bool isCeiling)

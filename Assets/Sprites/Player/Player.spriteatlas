@@ -56,10 +56,12 @@ SpriteAtlas:
   - {fileID: 21300000, guid: 9c27c73146f285542a0c108edade80de, type: 3}
   - {fileID: 21300000, guid: 14a74571165106c41a04d860d266b6ed, type: 3}
   - {fileID: 21300000, guid: b3df59f15461528458a87a18579eb75a, type: 3}
+  - {fileID: 21300000, guid: 60493a92b10bfae4989205e44082aba0, type: 3}
   - {fileID: 21300000, guid: bb20d5c2e5c032a48bf34d878d096f5e, type: 3}
   - {fileID: 21300000, guid: 97c80b1379ae91e4ab8505c741e0462a, type: 3}
   - {fileID: 21300000, guid: 9e99d023abbd630498b4bdc38afdd39a, type: 3}
   - {fileID: 21300000, guid: a9b19833e720d2c4c89a2ae64a7448f6, type: 3}
+  - {fileID: 21300000, guid: f72e9e83d4b40bc41b5c95b0a0f17dd6, type: 3}
   - {fileID: 21300000, guid: efddc5c38126ba84cb173b109be0b304, type: 3}
   - {fileID: 21300000, guid: 299164d3e19ca3e48b4be765e41975c2, type: 3}
   - {fileID: 21300000, guid: 6d384964506ace14cbfc3ab39a906765, type: 3}
@@ -114,10 +116,12 @@ SpriteAtlas:
   - run-shoot-3
   - walk-9
   - climb-2
+  - crawl-1
   - idle-2
   - walk-6
   - hurt
   - back-jump-2
+  - crouch-walk-1
   - walk-14
   - shoot
   - run-7

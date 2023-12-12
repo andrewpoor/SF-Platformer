@@ -13,8 +13,9 @@ public class PlayerController : MonoBehaviour
     [Serializable]
     private class MovementParameters
     {
-        public float horizontalSpeed = 2.5f;
+        public float runSpeed = 2.5f;
         public float jumpSpeed = 4.0f;
+        public float crouchWalkSpeed = 1.0f;
         public float wallSlideSpeed = 0.5f;
         public float wallJumpDuration = 0.15f;
         public float wallJumpHorizontalSpeed = 2.5f;
@@ -153,7 +154,6 @@ public class PlayerController : MonoBehaviour
         if(!falling && !dashing && Input.GetAxisRaw("Vertical") < 0.0f)
         {
             crouching = true;
-            xNewVelocity = 0.0f;
             
         }
         else
@@ -184,22 +184,26 @@ public class PlayerController : MonoBehaviour
                 SetInputActive(InputButton.Dash); //Process the input.
                 StartCoroutine(HoldDash());
             }
-            else if(!wallJumping && !crouching)
+            else if(!wallJumping)
             {
                 float curMoveSpeed;
 
                 if(superJumping)
                 {
-                    curMoveSpeed = moveParams.horizontalSpeed * moveParams.superJumpMoveModifier;
+                    curMoveSpeed = moveParams.runSpeed * moveParams.superJumpMoveModifier;
                 }
                 else if(falling)
                 {
                     //If in the air and moving faster than default, keep that speed.
-                    curMoveSpeed = Mathf.Max(Mathf.Abs(xNewVelocity), moveParams.horizontalSpeed);
+                    curMoveSpeed = Mathf.Max(Mathf.Abs(xNewVelocity), moveParams.runSpeed);
+                }
+                else if(crouching)
+                {
+                    curMoveSpeed = moveParams.crouchWalkSpeed;
                 }
                 else
                 {
-                    curMoveSpeed = moveParams.horizontalSpeed;
+                    curMoveSpeed = moveParams.runSpeed;
                 }
 
                 //Apply movement direction to speed.
@@ -216,6 +220,7 @@ public class PlayerController : MonoBehaviour
                 {
                     //Super jump.
                     SetInputInactive(InputButton.Jump); //Process the input.
+                    xNewVelocity = 0.0f;
                     StartCoroutine(SuperJump());
                 }
                 else

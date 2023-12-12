@@ -5,10 +5,11 @@ using UnityEngine;
 public class PlayerController : MonoBehaviour
 {
     //References.
-    public Animator animator;
-    public PlatformerPhysics platPhysics;
+    [SerializeField] private Animator animator;
+    [SerializeField] private PlatformerPhysics platPhysics;
+    [SerializeField] private TrailRenderer dashTrail;
 
-    [System.Serializable]
+    [Serializable]
     private class MovementParameters
     {
         public float horizontalSpeed = 2.5f;
@@ -234,7 +235,7 @@ public class PlayerController : MonoBehaviour
                 yNewVelocity = dashHeld ? moveParams.dashWallJumpVertSpeed : moveParams.wallJumpVerticalSpeed;
                 SetInputInactive(InputButton.Jump); //Process the input.
                 wallJumpEnabled = false;
-                StartCoroutine(WallJump());
+                StartCoroutine(WallJump(dashHeld));
             }
         }
 
@@ -279,6 +280,7 @@ public class PlayerController : MonoBehaviour
         jumpTrigger = true;
         superJumping = true;
         superCrouching = false;
+        dashTrail.emitting = true;
 
         //Wait for a physics tick, to allow the jump to begin.
         yield return new WaitForFixedUpdate();
@@ -290,13 +292,15 @@ public class PlayerController : MonoBehaviour
         }
 
         superJumping = false;
+        dashTrail.emitting = false;
     }
 
     //During a wall jump, temporarily disable horizontal input.
     //The player will continue to move with any existing horizontal velocity.
-    private IEnumerator WallJump()
+    private IEnumerator WallJump(bool isDashingWallJump)
     {
         wallJumping = true;
+        dashTrail.emitting = isDashingWallJump;
         double curTime = Time.realtimeSinceStartupAsDouble;
 
         //Wait for a physics tick, to allow the jump to begin.
@@ -314,6 +318,7 @@ public class PlayerController : MonoBehaviour
         }
 
         wallJumping = false;
+        dashTrail.emitting = false;
     }
 
     //While the dash button is held, maintain a dash, until released or the dash is finished.
@@ -322,6 +327,7 @@ public class PlayerController : MonoBehaviour
         float timer = 0.0f;
         dashEnabled = false;
         dashing = true;
+        dashTrail.emitting = true;
 
         //Maintain dash.
         while(Input.GetAxisRaw("Dash") > 0.1f && timer < moveParams.dashDuration)
@@ -335,6 +341,7 @@ public class PlayerController : MonoBehaviour
         }
 
         dashing = false;
+        dashTrail.emitting = false;
 
         //Delay before player can dash again.
         yield return new WaitForSeconds(moveParams.dashRepeatDelay);

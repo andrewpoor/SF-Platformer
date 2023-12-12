@@ -1,5 +1,6 @@
 using System;
 using System.Collections;
+using System.Threading;
 using UnityEngine;
 
 public class PlayerController : MonoBehaviour
@@ -50,6 +51,7 @@ public class PlayerController : MonoBehaviour
     private bool landTrigger = false;
     private bool crouching = false;
     private bool dashing = false;
+    private bool wallSliding = false;
 
     //Surface contacts.
     //These are updated during physics FixedUpdate, so might not be in sync with Update.
@@ -160,7 +162,7 @@ public class PlayerController : MonoBehaviour
         }
 
         //Wall sliding. Slide slowly if pressed against a wall while falling.
-        bool wallSliding = falling && yNewVelocity < 0.0f && ((rightWallContact && xRawInput > 0.01f) || (leftWallContact && xRawInput < -0.01f));
+        wallSliding = falling && yNewVelocity < 0.0f && ((rightWallContact && xRawInput > 0.01f) || (leftWallContact && xRawInput < -0.01f));
         if(wallSliding)
         {
             xNewVelocity = 0.0f;
@@ -354,10 +356,21 @@ public class PlayerController : MonoBehaviour
         float rawX = Input.GetAxisRaw("Horizontal");
         animator.SetFloat("HorizontalMove", Mathf.Abs(rawX));
 
-        //Flip the sprite if moving the other direction.
-        bool changeDirection = 
-                (rawX > 0.1f && transform.localScale.x < 0.0f) || 
-                (rawX < -0.1f && transform.localScale.x > 0.0f);
+        //Determine sprite direction.
+        bool changeDirection;
+        if(wallJumping)
+        {
+            float xVelocity = platPhysics.GetVelocity().x;
+            changeDirection =   (xVelocity > 0.0f && transform.localScale.x < 0.0f) ||
+                                (xVelocity < 0.0f && transform.localScale.x > 0.0f);
+        }
+        else
+        {
+            changeDirection =   (rawX > 0.1f && transform.localScale.x < 0.0f) || 
+                                (rawX < -0.1f && transform.localScale.x > 0.0f);
+            
+        }
+
         if(changeDirection && !superCrouching)
         {
             Vector3 curScale = transform.localScale;
@@ -377,6 +390,8 @@ public class PlayerController : MonoBehaviour
         animator.SetBool("PrepareSuperJump", superCrouching);
 
         animator.SetBool("Dashing", dashing);
+
+        animator.SetBool("WallSliding", wallSliding);
     }
 
     void OnLeaveFloor(bool isCeiling)

@@ -20,7 +20,19 @@ SpriteAtlas:
       readable: 0
       crunchedCompression: 0
       sRGB: 1
-    platformSettings: []
+    platformSettings:
+    - serializedVersion: 3
+      m_BuildTarget: DefaultTexturePlatform
+      m_MaxTextureSize: 512
+      m_ResizeAlgorithm: 0
+      m_TextureFormat: -1
+      m_TextureCompression: 1
+      m_CompressionQuality: 50
+      m_CrunchedCompression: 0
+      m_AllowsAlphaSplitting: 0
+      m_Overridden: 0
+      m_AndroidETC2FallbackOverride: 0
+      m_ForceMaximumCompressionQuality_BC6H_BC7: 0
     packingSettings:
       serializedVersion: 2
       padding: 4
@@ -60,6 +72,7 @@ SpriteAtlas:
   - {fileID: 21300000, guid: d58f5d7572c996046a4fddf198b3406c, type: 3}
   - {fileID: 21300000, guid: 602c5cb52b373cc4988a084aaae3a81e, type: 3}
   - {fileID: 21300000, guid: 9c734cd5e0d5a8e4bb0a82c68acc3535, type: 3}
+  - {fileID: 21300000, guid: 9fc26b967ac48e54cb2175a912969adb, type: 3}
   - {fileID: 21300000, guid: 7cc9e5a6d2de3dd4a8af51fbfe4fb347, type: 3}
   - {fileID: 21300000, guid: 00b585b69a4a91444ad5caae1153f076, type: 3}
   - {fileID: 21300000, guid: f94aaf07304f09f4783a5e0a4f61d596, type: 3}
@@ -117,6 +130,7 @@ SpriteAtlas:
   - run-shoot-8
   - run-1
   - run-4
+  - wallslide
   - run-3
   - run-shoot-4
   - walk-11

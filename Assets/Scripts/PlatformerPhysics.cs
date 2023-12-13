@@ -111,6 +111,12 @@ public class PlatformerPhysics : MonoBehaviour
         wallMessages = enabled;
     }
 
+    //Check if there's a ceiling above the entity, within the given distance.
+    public bool CheckCeilingCollision(float distance)
+    {
+        return TestFloorCollision(distance, true) < Mathf.Infinity;
+    }
+
     //Store current values for hitbox information.
     private void CacheHitboxData()
     {
@@ -270,10 +276,14 @@ public class PlatformerPhysics : MonoBehaviour
         bool leftWallHit = TestWallCollision(SURFACE_CHECK_DISTANCE, false) < Mathf.Infinity;
 
         //First check if being squashed between two surfaces.
-        if((groundHit && ceilingHit) || (rightWallHit && leftWallHit))
+        //Entities should typically respond by being destroyed.
+        if(groundHit && ceilingHit)
         {
-            //Do something here, probably destroy entity.
-            return;
+            gameObject.SendMessage("OnVerticalSquash");
+        }
+        if(rightWallHit && leftWallHit)
+        {
+            gameObject.SendMessage("OnHorizontalSquash");
         }
 
         //Update contacts. A contact isn't valid if the entity is moving away from it.

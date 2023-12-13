@@ -9,6 +9,7 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private Animator animator;
     [SerializeField] private PlatformerPhysics platPhysics;
     [SerializeField] private TrailRenderer dashTrail;
+    [SerializeField] private BoxCollider2D hitbox;
 
     [Serializable]
     private class MovementParameters
@@ -67,6 +68,8 @@ public class PlayerController : MonoBehaviour
     private bool superJumping = false;
     private bool superCrouching = false;
     private bool dashEnabled = true;
+    private bool forceCrouch = false;
+    private float standingHitboxHeight;
 
     void Start()
     {
@@ -77,6 +80,8 @@ public class PlayerController : MonoBehaviour
 
         platPhysics.EnableFloorMessages();
         platPhysics.EnableWallMessages();
+
+        standingHitboxHeight = hitbox.bounds.size.y;
     }
 
     void Update()
@@ -150,15 +155,26 @@ public class PlayerController : MonoBehaviour
         float yNewVelocity = platPhysics.GetVelocity().y;
         float xRawInput = Input.GetAxisRaw("Horizontal");
 
-        //Crouching. Only crouch when grounded.
-        if(!falling && !dashing && Input.GetAxisRaw("Vertical") < 0.0f)
+        //Crouching.
+        if(forceCrouch && !crouching)
         {
+            //If the ceiling is too low, try crouching to see if the player now fits inside the gap.
             crouching = true;
-            
         }
         else
         {
-            crouching = false;
+            //Check for forced crouching. If inside an area with a low ceiling, the player is forced to crouch.
+            //They remain crouched until there's space to stand up again.
+            if(crouching)
+            {
+                //Check for sufficient space above player. (This requires a bit of extra space
+                // to avoid being considered squashed again.)
+                float requiredSpace = standingHitboxHeight - hitbox.bounds.size.y + 0.02f;
+                forceCrouch = platPhysics.CheckCeilingCollision(requiredSpace);
+            }
+        
+            //Crouch if forced to, or if the input is pressed while grounded.
+            crouching = forceCrouch || (Input.GetAxisRaw("Vertical") < 0.0f && !falling && !dashing);
         }
 
         //Wall sliding. Slide slowly if pressed against a wall while falling.
@@ -177,7 +193,7 @@ public class PlayerController : MonoBehaviour
         //Horizontal movement.
         if(!superCrouching && !wallSliding)
         {
-            if(IsInputActive(InputButton.Dash) && !falling && dashEnabled)
+            if(IsInputActive(InputButton.Dash) && !falling && dashEnabled && !forceCrouch)
             {
                 //Ground dash in direction we're facing.
                 xNewVelocity = transform.localScale.x > 0.0f ? moveParams.dashSpeed : -moveParams.dashSpeed;
@@ -212,7 +228,7 @@ public class PlayerController : MonoBehaviour
         }
 
         //Jumping.
-        if(IsInputActive(InputButton.Jump))
+        if(IsInputActive(InputButton.Jump) && !forceCrouch)
         {
             if(groundJumpEnabled)
             {
@@ -458,6 +474,24 @@ public class PlayerController : MonoBehaviour
         }
 
         wallJumpEnabled = true;
+    }
+
+    void OnHorizontalSquash()
+    {
+        //TODO: Kill player here.
+    }
+
+    void OnVerticalSquash()
+    {
+        if(crouching)
+        {
+            //TODO: Kill player here.
+        }
+        else
+        {
+            //Auto crouch to try and fit inside the smaller space.
+            forceCrouch = true;
+        }
     }
 
     //Wait before enabling or disabling the jump.

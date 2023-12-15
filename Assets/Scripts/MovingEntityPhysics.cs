@@ -1,3 +1,4 @@
+using System.Collections;
 using UnityEngine;
 
 /*
@@ -7,10 +8,10 @@ using UnityEngine;
  *  which is a special exception. Sloped walls and ceilings will not work correctly if present 
  *  in a level, and should be avoided.
  */
-public class PlatformerPhysics : MonoBehaviour
+public class MovingEntityPhysics : MonoBehaviour
 {
     //References.
-    public BoxCollider2D hitbox;
+    [SerializeField] private BoxCollider2D hitbox;
 
     //Parameters.
     public float verticalDrag = 0.1f;
@@ -46,13 +47,24 @@ public class PlatformerPhysics : MonoBehaviour
 
     //Movement.
     private const float GRAVITY_CONST = -9.81f;
-    public Vector3 acceleration = new Vector3(0.0f, 0.0f, 0.0f);
-    public Vector3 velocity = new Vector3(0.0f, 0.0f, 0.0f);
+    private Vector3 acceleration = new Vector3(0.0f, 0.0f, 0.0f);
+    private Vector3 velocity = new Vector3(0.0f, 0.0f, 0.0f);
 
     private class CollisionInfo
     {
         public float distance; //Distance to collision.
         public float angle; //Angle of surface colliding with.
+        public bool isMovingSolid; //True if the surface is that of a moving solid.
+    }
+
+    void OnEnable()
+    {
+        LevelManager.Instance.RegisterEntity(gameObject);
+    }
+
+    void OnDisable()
+    {
+        LevelManager.Instance.UnregisterEntity(gameObject);
     }
 
     void FixedUpdate()
@@ -114,7 +126,7 @@ public class PlatformerPhysics : MonoBehaviour
     //Check if there's a ceiling above the entity, within the given distance.
     public bool CheckCeilingCollision(float distance)
     {
-        return TestFloorCollision(distance, true) < Mathf.Infinity;
+        return TestFloorCollisionEx(distance, true) != null;
     }
 
     //Store current values for hitbox information.
@@ -253,7 +265,7 @@ public class PlatformerPhysics : MonoBehaviour
     //If there is a slope below the entity (within tolerance), move vertically to it.
     private void StickToSlope()
     {
-        CollisionInfo groundCheck = TestGroundCollisionEx(SLOPE_CHECK_DISTANCE);
+        CollisionInfo groundCheck = TestFloorCollisionEx(SLOPE_CHECK_DISTANCE, false);
         bool prevSloped = slopedGround;
         slopedGround = groundCheck != null && groundCheck.angle != 0.0f;
 
@@ -270,10 +282,10 @@ public class PlatformerPhysics : MonoBehaviour
     private void CheckTouchingSurfaces()
     {
         //Collision checks in the cardinal directions.
-        bool ceilingHit = TestFloorCollision(SURFACE_CHECK_DISTANCE, true) < Mathf.Infinity;
-        bool groundHit = TestFloorCollision(SURFACE_CHECK_DISTANCE, false) < Mathf.Infinity;
-        bool rightWallHit = TestWallCollision(SURFACE_CHECK_DISTANCE, true) < Mathf.Infinity;
-        bool leftWallHit = TestWallCollision(SURFACE_CHECK_DISTANCE, false) < Mathf.Infinity;
+        bool ceilingHit = TestFloorCollisionEx(SURFACE_CHECK_DISTANCE, true) != null;
+        bool groundHit = TestFloorCollisionEx(SURFACE_CHECK_DISTANCE, false) != null;
+        bool rightWallHit = TestWallCollisionEx(SURFACE_CHECK_DISTANCE, true) != null;
+        bool leftWallHit = TestWallCollisionEx(SURFACE_CHECK_DISTANCE, false) != null;
 
         //First check if being squashed between two surfaces.
         //Entities should typically respond by being destroyed.
@@ -299,9 +311,9 @@ public class PlatformerPhysics : MonoBehaviour
     private bool MoveCollideX(float moveDistance, bool rightward)
     {
         //Check for collision, and cap movement if it's collided.
-        float colDistance = TestWallCollision(moveDistance, rightward);
-        bool collided = colDistance < moveDistance;
-        moveDistance = collided ? colDistance : moveDistance;
+        CollisionInfo col = TestWallCollisionEx(moveDistance, rightward);
+        bool collided = col != null;
+        moveDistance = collided ? col.distance : moveDistance;
 
         //Move the appropriate amount.
         transform.Translate(rightward ? moveDistance : -moveDistance, 0.0f, 0.0f);
@@ -315,9 +327,9 @@ public class PlatformerPhysics : MonoBehaviour
     private bool MoveCollideY(float moveDistance, bool upward)
     {
         //Check for collision, and cap movement if it's collided.
-        float colDistance = TestFloorCollision(moveDistance, upward);
-        bool collided = colDistance < moveDistance;
-        moveDistance = collided ? colDistance : moveDistance;
+        CollisionInfo col = TestFloorCollisionEx(moveDistance, upward);
+        bool collided = col != null;
+        moveDistance = collided ? col.distance : moveDistance;
 
         //Move the appropriate amount.
         transform.Translate(0.0f, upward ? moveDistance : -moveDistance, 0.0f);
@@ -325,49 +337,34 @@ public class PlatformerPhysics : MonoBehaviour
         return collided;
     }
 
-    //See if the player collides with a floor/ceiling surface some distance away.
-    //Either check the ceiling above or the ground below.
-    private float TestFloorCollision(float distance, bool lookUp)
+    private CollisionInfo TestFloorCollisionEx(float distance, bool lookUp)
     {
         float yOrigin = transform.position.y + (lookUp ? hitboxTopOffset : hitboxBottomOffset);
         Vector2 leftOrigin = new Vector2(transform.position.x + hitboxLeftOffset + 0.005f, yOrigin);
         Vector2 rightOrigin = new Vector2(transform.position.x + hitboxRightOffset - 0.005f, yOrigin);
         Vector2 dir = lookUp ? Vector2.up : Vector2.down;
 
-        float colDistance = Mathf.Infinity;
-        colDistance = Mathf.Min(colDistance, SurfaceRayTest(leftOrigin, dir, distance, FLOOR_ANGLE));
-        colDistance = Mathf.Min(colDistance, SurfaceRayTest(rightOrigin, dir, distance, FLOOR_ANGLE));
+        CollisionInfo leftCol = SurfaceRayTestEx(leftOrigin, dir, distance, FLOOR_ANGLE);
+        CollisionInfo rightCol = SurfaceRayTestEx(rightOrigin, dir, distance, FLOOR_ANGLE);
 
-        return colDistance;
-    }
-
-    //Special ground collision check that returns more information on the collision.
-    private CollisionInfo TestGroundCollisionEx(float distance)
-    {
-        float yOrigin = transform.position.y + hitboxBottomOffset;
-        Vector2 leftOrigin = new Vector2(transform.position.x + hitboxLeftOffset + 0.005f, yOrigin);
-        Vector2 rightOrigin = new Vector2(transform.position.x + hitboxRightOffset - 0.005f, yOrigin);
-
-        CollisionInfo leftCol = SurfaceRayTestEx(leftOrigin, Vector2.down, distance, FLOOR_ANGLE);
-        CollisionInfo rightCol = SurfaceRayTestEx(rightOrigin, Vector2.down, distance, FLOOR_ANGLE);
-
-        if(leftCol == null && rightCol == null)
+        if(rightCol == null)
         {
-            return null;
+            return leftCol; //Returns null if both are null.
         }
-        else if(rightCol == null || (leftCol != null && leftCol.distance < rightCol.distance))
-        {
-            return leftCol;
-        }
-        else
+        else if(leftCol == null)
         {
             return rightCol;
         }
+        else
+        {
+            //Consolidate info from all collisions.
+            CollisionInfo nearestCol = leftCol.distance < rightCol.distance ? leftCol : rightCol;
+            nearestCol.isMovingSolid = leftCol.isMovingSolid && rightCol.isMovingSolid;
+            return nearestCol;
+        }
     }
 
-    //See if the player collides with a wall some distance away.
-    //Either check for a wall to the right or the left.
-    private float TestWallCollision(float distance, bool lookRight)
+    private CollisionInfo TestWallCollisionEx(float distance, bool lookRight)
     {
         float xOrigin = transform.position.x + (lookRight ? hitboxRightOffset : hitboxLeftOffset);
         Vector2 topOrigin = new Vector2(xOrigin, transform.position.y + hitboxTopOffset - 0.005f);
@@ -375,12 +372,28 @@ public class PlatformerPhysics : MonoBehaviour
         Vector2 bottomOrigin = new Vector2(xOrigin, transform.position.y + hitboxBottomOffset + 0.005f);
         Vector2 dir = lookRight ? Vector2.right : Vector2.left;
 
-        float colDistance = Mathf.Infinity;
-        colDistance = Mathf.Min(colDistance, SurfaceRayTest(topOrigin, dir, distance, WALL_ANGLE));
-        colDistance = Mathf.Min(colDistance, SurfaceRayTest(middleOrigin, dir, distance, WALL_ANGLE));
-        colDistance = Mathf.Min(colDistance, SurfaceRayTest(bottomOrigin, dir, distance, WALL_ANGLE));
+        CollisionInfo topCol = SurfaceRayTestEx(topOrigin, dir, distance, WALL_ANGLE);
+        CollisionInfo middleCol = SurfaceRayTestEx(middleOrigin, dir, distance, WALL_ANGLE);
+        CollisionInfo bottomCol = SurfaceRayTestEx(bottomOrigin, dir, distance, WALL_ANGLE);
 
-        return colDistance;
+        if(topCol == null && middleCol == null && bottomCol == null)
+        {
+            return null;
+        }
+        else
+        {
+            //Consolidate info from all collisions.
+            CollisionInfo nearestCol = topCol;
+            nearestCol = (nearestCol == null || (middleCol != null && middleCol.distance < nearestCol.distance)) ? middleCol : nearestCol;
+            nearestCol = (nearestCol == null || (bottomCol != null && bottomCol.distance < nearestCol.distance)) ? bottomCol : nearestCol;
+
+            nearestCol.isMovingSolid = 
+                    (topCol == null || topCol.isMovingSolid) && 
+                    (middleCol == null || middleCol.isMovingSolid) && 
+                    (bottomCol == null || bottomCol.isMovingSolid);
+
+            return nearestCol;
+        }
     }
 
     //Helper function that casts a ray in a given direction, and determines if a surface of the correct
@@ -389,30 +402,6 @@ public class PlatformerPhysics : MonoBehaviour
     // E.g. if the ray is cast downwards to check for the ground, it can't be too steep, otherwise it 
     // wouldn't count as 'ground'.
     //The ray starts from an inset position, to detect collisions inside, or at the bounds of, this hitbox.
-    //Return value is the distance to the collision; Infinity otherwise.
-    private float SurfaceRayTest(Vector2 origin, Vector2 direction, float distance, float angleTolerance)
-    {
-        RaycastHit2D hit = Physics2D.Raycast(
-            origin - direction * SURFACE_CHECK_INSET,
-            direction,
-            SURFACE_CHECK_INSET + distance,
-            SURFACE_LAYER_MASK);
-        
-        //Check if it hit a surface, and if so, that the surface angle is within tolerance.
-        //(Ignore hits from colliders inside the ray's origin, as no normal is computed in that instance.)
-        if( (hit.collider != null) && 
-            (hit.fraction != 0.0f) && 
-            (Mathf.Abs(Vector2.Angle(-direction, hit.normal)) <= angleTolerance))
-        {
-            return hit.distance - SURFACE_CHECK_INSET;
-        }
-        else
-        {
-            return Mathf.Infinity;
-        }
-    }
-
-    //Surface ray test that returns more information about the collision.
     private CollisionInfo SurfaceRayTestEx(Vector2 origin, Vector2 direction, float distance, float angleTolerance)
     {
         RaycastHit2D hit = Physics2D.Raycast(
@@ -431,7 +420,8 @@ public class PlatformerPhysics : MonoBehaviour
                 return new CollisionInfo()
                 {
                     angle = colAngle,
-                    distance = hit.distance - SURFACE_CHECK_INSET
+                    distance = hit.distance - SURFACE_CHECK_INSET,
+                    isMovingSolid = false
                 };
             }
         }

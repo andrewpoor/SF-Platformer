@@ -7,7 +7,7 @@ public class PlayerController : MonoBehaviour
 {
     //References.
     [SerializeField] private Animator animator;
-    [SerializeField] private PlatformerPhysics platPhysics;
+    [SerializeField] private MovingEntityPhysics entityPhysics;
     [SerializeField] private TrailRenderer dashTrail;
     [SerializeField] private BoxCollider2D hitbox;
 
@@ -78,8 +78,8 @@ public class PlayerController : MonoBehaviour
             StartCoroutine(ProcessButtonInputs(button));
         }
 
-        platPhysics.EnableFloorMessages();
-        platPhysics.EnableWallMessages();
+        entityPhysics.EnableFloorMessages();
+        entityPhysics.EnableWallMessages();
 
         standingHitboxHeight = hitbox.bounds.size.y;
     }
@@ -151,8 +151,8 @@ public class PlayerController : MonoBehaviour
     //Respond to user input and determine velocity for the next frame.
     private void UpdateMovement()
     {
-        float xNewVelocity = platPhysics.GetVelocity().x;
-        float yNewVelocity = platPhysics.GetVelocity().y;
+        float xNewVelocity = entityPhysics.GetVelocity().x;
+        float yNewVelocity = entityPhysics.GetVelocity().y;
         float xRawInput = Input.GetAxisRaw("Horizontal");
 
         //Crouching.
@@ -170,7 +170,7 @@ public class PlayerController : MonoBehaviour
                 //Check for sufficient space above player. (This requires a bit of extra space
                 // to avoid being considered squashed again.)
                 float requiredSpace = standingHitboxHeight - hitbox.bounds.size.y + 0.02f;
-                forceCrouch = platPhysics.CheckCeilingCollision(requiredSpace);
+                forceCrouch = entityPhysics.CheckCeilingCollision(requiredSpace);
             }
         
             //Crouch if forced to, or if the input is pressed while grounded.
@@ -183,11 +183,11 @@ public class PlayerController : MonoBehaviour
         {
             xNewVelocity = 0.0f;
             yNewVelocity = -moveParams.wallSlideSpeed;
-            platPhysics.SetGravityScale(0.0f);
+            entityPhysics.SetGravityScale(0.0f);
         }
         else
         {
-            platPhysics.SetGravityScale(1.0f);
+            entityPhysics.SetGravityScale(1.0f);
         }
 
         //Horizontal movement.
@@ -263,7 +263,7 @@ public class PlayerController : MonoBehaviour
         }
 
         //Apply movement.
-        platPhysics.SetVelocity(xNewVelocity, yNewVelocity);
+        entityPhysics.SetVelocity(xNewVelocity, yNewVelocity);
     }
 
     //While the jump input is held, maintain the jump until released, or the jump is finished.
@@ -275,7 +275,7 @@ public class PlayerController : MonoBehaviour
         while(Input.GetAxisRaw("Jump") > 0.1f)
         {
             //Check if the jump has finished.
-            if(ceilingContact || !falling || platPhysics.GetVelocity().y <= 0.0f)
+            if(ceilingContact || !falling || entityPhysics.GetVelocity().y <= 0.0f)
             {
                 //Jump finished naturally, so no need to do anything else.
                 yield break;
@@ -287,7 +287,7 @@ public class PlayerController : MonoBehaviour
         }
 
         //Abort jump if input is released before the jump is finished.
-        platPhysics.SetVelocityY(0.0f);
+        entityPhysics.SetVelocityY(0.0f);
     }
 
     //Special jump. The player character stops for a duration to build power,
@@ -299,7 +299,7 @@ public class PlayerController : MonoBehaviour
 
         yield return new WaitForSeconds(moveParams.superJumpPrepareTime);
 
-        platPhysics.SetVelocityY(moveParams.superJumpSpeed);
+        entityPhysics.SetVelocityY(moveParams.superJumpSpeed);
         jumpTrigger = true;
         superJumping = true;
         superCrouching = false;
@@ -309,7 +309,7 @@ public class PlayerController : MonoBehaviour
         yield return new WaitForFixedUpdate();
 
         //Keep horizontal movement disabled during the super jump.
-        while(!ceilingContact && falling && platPhysics.GetVelocity().y > 0.0f)
+        while(!ceilingContact && falling && entityPhysics.GetVelocity().y > 0.0f)
         {
             yield return null;
         }
@@ -356,7 +356,7 @@ public class PlayerController : MonoBehaviour
         while(Input.GetAxisRaw("Dash") > 0.1f && timer < moveParams.dashDuration)
         {
             //Ground dash in direction we're facing.
-            platPhysics.SetVelocityX(transform.localScale.x > 0.0f ? moveParams.dashSpeed : -moveParams.dashSpeed);
+            entityPhysics.SetVelocityX(transform.localScale.x > 0.0f ? moveParams.dashSpeed : -moveParams.dashSpeed);
 
             yield return null;
 
@@ -381,7 +381,7 @@ public class PlayerController : MonoBehaviour
         bool changeDirection;
         if(wallJumping)
         {
-            float xVelocity = platPhysics.GetVelocity().x;
+            float xVelocity = entityPhysics.GetVelocity().x;
             changeDirection =   (xVelocity > 0.0f && transform.localScale.x < 0.0f) ||
                                 (xVelocity < 0.0f && transform.localScale.x > 0.0f);
         }

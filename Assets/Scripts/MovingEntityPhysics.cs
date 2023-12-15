@@ -24,6 +24,14 @@ public class MovingEntityPhysics : MonoBehaviour
     private bool leftWallContact = false;
     private bool slopedGround = false; //True if sticking to sloped ground.
 
+    //Surface riding. An entity is 'riding' a surface if it's attached to it.
+    //Entities are always considered riding a ground object below, due to gravity.
+    private bool ridingWall = false; //True if sticking to a wall.
+    private GameObject groundRidingObject = null;
+    private GameObject ceilingRidingObject = null;
+    private GameObject rightWallRidingObject = null;
+    private GameObject leftWallRidingObject = null;
+
     //Collisions.
     private const float SURFACE_CHECK_INSET = 0.1f; //Surface check raycasts should start inset from the bounds of the collider.
     private const float SURFACE_CHECK_DISTANCE = 0.001f; //How close a surface must be to be considered in contact with the player.
@@ -55,6 +63,7 @@ public class MovingEntityPhysics : MonoBehaviour
         public float distance; //Distance to collision.
         public float angle; //Angle of surface colliding with.
         public bool isMovingSolid; //True if the surface is that of a moving solid.
+        public GameObject surfaceObject; //Game object that's being collided with.
     }
 
     void OnEnable()
@@ -127,6 +136,21 @@ public class MovingEntityPhysics : MonoBehaviour
     public bool CheckCeilingCollision(float distance)
     {
         return TestFloorCollisionEx(distance, true) != null;
+    }
+
+    //Tell the physics engine that this entity is, or isn't, 'riding' a wall.
+    public void SetRidingWall(bool isRiding)
+    {
+        ridingWall = isRiding;
+    }
+
+    //Check if this entity is riding the given object.
+    public bool IsRidingObject(GameObject ridableObject)
+    {
+        return ceilingRidingObject == ridableObject ||
+            groundRidingObject == ridableObject ||
+            leftWallRidingObject == ridableObject ||
+            rightWallRidingObject == ridableObject;
     }
 
     //Store current values for hitbox information.
@@ -282,27 +306,33 @@ public class MovingEntityPhysics : MonoBehaviour
     private void CheckTouchingSurfaces()
     {
         //Collision checks in the cardinal directions.
-        bool ceilingHit = TestFloorCollisionEx(SURFACE_CHECK_DISTANCE, true) != null;
-        bool groundHit = TestFloorCollisionEx(SURFACE_CHECK_DISTANCE, false) != null;
-        bool rightWallHit = TestWallCollisionEx(SURFACE_CHECK_DISTANCE, true) != null;
-        bool leftWallHit = TestWallCollisionEx(SURFACE_CHECK_DISTANCE, false) != null;
+        CollisionInfo ceilingCol = TestFloorCollisionEx(SURFACE_CHECK_DISTANCE, true);
+        CollisionInfo groundCol = TestFloorCollisionEx(SURFACE_CHECK_DISTANCE, false);
+        CollisionInfo rightWallCol = TestWallCollisionEx(SURFACE_CHECK_DISTANCE, true);
+        CollisionInfo leftWallCol = TestWallCollisionEx(SURFACE_CHECK_DISTANCE, false);
 
         //First check if being squashed between two surfaces.
         //Entities should typically respond by being destroyed.
-        if(groundHit && ceilingHit)
+        if(groundCol != null && ceilingCol != null)
         {
             gameObject.SendMessage("OnVerticalSquash");
         }
-        if(rightWallHit && leftWallHit)
+        if(rightWallCol != null && leftWallCol != null)
         {
             gameObject.SendMessage("OnHorizontalSquash");
         }
 
         //Update contacts. A contact isn't valid if the entity is moving away from it.
-        ceilingContact = ceilingHit && velocity.y > -0.01f;
-        groundContact = groundHit && velocity.y < 0.01f;
-        rightWallContact = rightWallHit && velocity.x > -0.01f;
-        leftWallContact = leftWallHit && velocity.x < 0.01f;
+        ceilingContact = ceilingCol != null && velocity.y > -0.01f;
+        groundContact = groundCol != null && velocity.y < 0.01f;
+        rightWallContact = rightWallCol != null && velocity.x > -0.01f;
+        leftWallContact = leftWallCol != null && velocity.x < 0.01f;
+
+        //Update riding objects. An object is being ridden if the entity is touching it and attached to it.
+        groundRidingObject = (groundContact && groundCol.isMovingSolid) ? groundCol.surfaceObject : null;
+        rightWallRidingObject = (rightWallContact && rightWallCol.isMovingSolid && ridingWall) ? rightWallCol.surfaceObject : null;
+        leftWallRidingObject = (leftWallContact && leftWallCol.isMovingSolid && ridingWall) ? leftWallCol.surfaceObject : null;
+        //Ceiling riding is currently always null as no entity has the ability to do so.
     }
 
     //Move horizontally by the given amount. If this would collide, stop short.
@@ -387,6 +417,7 @@ public class MovingEntityPhysics : MonoBehaviour
             nearestCol = (nearestCol == null || (middleCol != null && middleCol.distance < nearestCol.distance)) ? middleCol : nearestCol;
             nearestCol = (nearestCol == null || (bottomCol != null && bottomCol.distance < nearestCol.distance)) ? bottomCol : nearestCol;
 
+            //Only register moving solid contact if every valid contact point is touching it.
             nearestCol.isMovingSolid = 
                     (topCol == null || topCol.isMovingSolid) && 
                     (middleCol == null || middleCol.isMovingSolid) && 
@@ -421,7 +452,8 @@ public class MovingEntityPhysics : MonoBehaviour
                 {
                     angle = colAngle,
                     distance = hit.distance - SURFACE_CHECK_INSET,
-                    isMovingSolid = false
+                    isMovingSolid = false,
+                    surfaceObject = hit.collider.gameObject
                 };
             }
         }

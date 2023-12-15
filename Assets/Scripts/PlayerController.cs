@@ -184,10 +184,12 @@ public class PlayerController : MonoBehaviour
             xNewVelocity = 0.0f;
             yNewVelocity = -moveParams.wallSlideSpeed;
             entityPhysics.SetGravityScale(0.0f);
+            entityPhysics.SetRidingWall(true);
         }
         else
         {
             entityPhysics.SetGravityScale(1.0f);
+            entityPhysics.SetRidingWall(false);
         }
 
         //Horizontal movement.

@@ -8,7 +8,7 @@ using UnityEngine;
  *  which is a special exception. Sloped walls and ceilings will not work correctly if present 
  *  in a level, and should be avoided.
  */
-public class MovingEntityPhysics : MonoBehaviour
+public class MovingEntity : MonoBehaviour
 {
     //References.
     [SerializeField] private BoxCollider2D hitbox;
@@ -68,12 +68,12 @@ public class MovingEntityPhysics : MonoBehaviour
 
     void OnEnable()
     {
-        LevelManager.Instance.RegisterEntity(gameObject);
+        LevelManager.Instance.RegisterEntity(this);
     }
 
     void OnDisable()
     {
-        LevelManager.Instance.UnregisterEntity(gameObject);
+        LevelManager.Instance.UnregisterEntity(this);
     }
 
     void FixedUpdate()
@@ -169,7 +169,7 @@ public class MovingEntityPhysics : MonoBehaviour
         Vector3 moveDelta = (velocity + (acceleration / 2.0f) * Time.fixedDeltaTime) * Time.fixedDeltaTime;
 
         //Apply movement, accounting for collisions.
-        MoveWithCollisions(moveDelta.x, moveDelta.y);
+        Move(moveDelta.x, moveDelta.y);
 
         if(moveDelta.y == 0)
         {
@@ -250,7 +250,7 @@ public class MovingEntityPhysics : MonoBehaviour
     }
 
     //Move by the given amount, accounting for collisions.
-    private void MoveWithCollisions(float xMove, float yMove)
+    private void Move(float xMove, float yMove)
     {
         /*
          * The movement system assumes everything is an Axis-Aligned-Bounding-Box.

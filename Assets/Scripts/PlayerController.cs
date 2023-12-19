@@ -7,7 +7,7 @@ public class PlayerController : MonoBehaviour
 {
     //References.
     [SerializeField] private Animator animator;
-    [SerializeField] private MovingEntityPhysics entityPhysics;
+    [SerializeField] private MovingEntity entityPhysics;
     [SerializeField] private TrailRenderer dashTrail;
     [SerializeField] private BoxCollider2D hitbox;
 

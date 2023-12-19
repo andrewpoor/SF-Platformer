@@ -5,19 +5,19 @@ public class LevelManager : MonoBehaviour
 {
     public static LevelManager Instance { get; private set; }
 
-    private List<GameObject> entities = new();
+    private List<MovingEntity> entities = new();
 
-    public List<GameObject> GetAllEntities()
+    public List<MovingEntity> GetAllEntities()
     {
         return entities;
     }
 
-    public void RegisterEntity(GameObject entity)
+    public void RegisterEntity(MovingEntity entity)
     {
         entities.Add(entity);
     }
 
-    public void UnregisterEntity(GameObject entity)
+    public void UnregisterEntity(MovingEntity entity)
     {
         entities.Remove(entity);
     }

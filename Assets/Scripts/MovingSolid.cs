@@ -1,8 +1,8 @@
-using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 
-public class MovingSolidPhysics : MonoBehaviour
+public class MovingSolid : MonoBehaviour
 {
     [SerializeField] private BoxCollider2D hitbox;
 
@@ -23,5 +23,13 @@ public class MovingSolidPhysics : MonoBehaviour
     public void Move(float x, float y)
     {
 
+    }
+
+    private List<MovingEntity> FindAllRidingEntities()
+    {
+        List<MovingEntity> entities = LevelManager.Instance.GetAllEntities();
+        
+        //Filter list of all entities down to the ones riding this object.
+        return entities.Where(entity => entity.IsRidingObject(gameObject)).ToList();
     }
 }

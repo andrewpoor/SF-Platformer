@@ -1,4 +1,3 @@
-using System.Collections;
 using UnityEngine;
 
 /*
@@ -12,6 +11,7 @@ public class MovingEntity : MonoBehaviour
 {
     //References.
     [SerializeField] private BoxCollider2D hitbox;
+    [SerializeField] private Rigidbody2D rBody;
 
     //Parameters.
     public float verticalDrag = 0.1f;
@@ -40,14 +40,6 @@ public class MovingEntity : MonoBehaviour
     private const float FLOOR_ANGLE = 60.0f; //How steep a surface can be to be considered ground.
     private const float WALL_ANGLE = 25.0f; //How slanted a surface can be to be considered a wall.
     private const float MOVE_UNIT = 0.01f; //Movement is split into units for better collision detection. Smaller units are more precise but expensive.
-
-    //Hitbox cached dimensions. The actual hitbox doesn't sync with the actor's location
-    // until a later frame, so values should be saved at the start of every fixed update
-    // in order to provide accurate results when used mid-frame.
-    private float hitboxTopOffset;
-    private float hitboxBottomOffset;
-    private float hitboxLeftOffset;
-    private float hitboxRightOffset;
 
     //Control whether messages are sent on collision events.
     private bool floorMessages = false;
@@ -78,8 +70,6 @@ public class MovingEntity : MonoBehaviour
 
     void FixedUpdate()
     {
-        CacheHitboxData();
-
         UpdatePhysics();
     }
 
@@ -135,7 +125,7 @@ public class MovingEntity : MonoBehaviour
     //Check if there's a ceiling above the entity, within the given distance.
     public bool CheckCeilingCollision(float distance)
     {
-        return TestFloorCollisionEx(distance, true) != null;
+        return TestFloorCollision(distance, true) != null;
     }
 
     //Tell the physics engine that this entity is, or isn't, 'riding' a wall.
@@ -151,15 +141,6 @@ public class MovingEntity : MonoBehaviour
             groundRidingObject == ridableObject ||
             leftWallRidingObject == ridableObject ||
             rightWallRidingObject == ridableObject;
-    }
-
-    //Store current values for hitbox information.
-    private void CacheHitboxData()
-    {
-        hitboxTopOffset = hitbox.bounds.max.y - transform.position.y;
-        hitboxBottomOffset = hitbox.bounds.min.y - transform.position.y;
-        hitboxLeftOffset = hitbox.bounds.min.x - transform.position.x;
-        hitboxRightOffset = hitbox.bounds.max.x - transform.position.x;
     }
 
     //Resolve velocity, acceleration and collisions.
@@ -289,7 +270,7 @@ public class MovingEntity : MonoBehaviour
     //If there is a slope below the entity (within tolerance), move vertically to it.
     private void StickToSlope()
     {
-        CollisionInfo groundCheck = TestFloorCollisionEx(SLOPE_CHECK_DISTANCE, false);
+        CollisionInfo groundCheck = TestFloorCollision(SLOPE_CHECK_DISTANCE, false);
         bool prevSloped = slopedGround;
         slopedGround = groundCheck != null && groundCheck.angle != 0.0f;
 
@@ -298,7 +279,7 @@ public class MovingEntity : MonoBehaviour
         // to meet the flat ground at the bottom.)
         if(slopedGround || (groundCheck != null && prevSloped))
         {
-            transform.Translate(0.0f, -groundCheck.distance, 0.0f);
+            rBody.position -= new Vector2(0.0f, groundCheck.distance);
         }
     }
 
@@ -306,10 +287,10 @@ public class MovingEntity : MonoBehaviour
     private void CheckTouchingSurfaces()
     {
         //Collision checks in the cardinal directions.
-        CollisionInfo ceilingCol = TestFloorCollisionEx(SURFACE_CHECK_DISTANCE, true);
-        CollisionInfo groundCol = TestFloorCollisionEx(SURFACE_CHECK_DISTANCE, false);
-        CollisionInfo rightWallCol = TestWallCollisionEx(SURFACE_CHECK_DISTANCE, true);
-        CollisionInfo leftWallCol = TestWallCollisionEx(SURFACE_CHECK_DISTANCE, false);
+        CollisionInfo ceilingCol = TestFloorCollision(SURFACE_CHECK_DISTANCE, true);
+        CollisionInfo groundCol = TestFloorCollision(SURFACE_CHECK_DISTANCE, false);
+        CollisionInfo rightWallCol = TestWallCollision(SURFACE_CHECK_DISTANCE, true);
+        CollisionInfo leftWallCol = TestWallCollision(SURFACE_CHECK_DISTANCE, false);
 
         //First check if being squashed between two surfaces.
         //Entities should typically respond by being destroyed.
@@ -341,12 +322,12 @@ public class MovingEntity : MonoBehaviour
     private bool MoveCollideX(float moveDistance, bool rightward)
     {
         //Check for collision, and cap movement if it's collided.
-        CollisionInfo col = TestWallCollisionEx(moveDistance, rightward);
+        CollisionInfo col = TestWallCollision(moveDistance, rightward);
         bool collided = col != null;
         moveDistance = collided ? col.distance : moveDistance;
 
         //Move the appropriate amount.
-        transform.Translate(rightward ? moveDistance : -moveDistance, 0.0f, 0.0f);
+        rBody.position += new Vector2(rightward ? moveDistance : -moveDistance, 0.0f);
 
         return collided;
     }
@@ -357,25 +338,28 @@ public class MovingEntity : MonoBehaviour
     private bool MoveCollideY(float moveDistance, bool upward)
     {
         //Check for collision, and cap movement if it's collided.
-        CollisionInfo col = TestFloorCollisionEx(moveDistance, upward);
+        CollisionInfo col = TestFloorCollision(moveDistance, upward);
         bool collided = col != null;
         moveDistance = collided ? col.distance : moveDistance;
 
         //Move the appropriate amount.
-        transform.Translate(0.0f, upward ? moveDistance : -moveDistance, 0.0f);
+        rBody.position += new Vector2(0.0f, upward ? moveDistance : -moveDistance);
 
         return collided;
     }
 
-    private CollisionInfo TestFloorCollisionEx(float distance, bool lookUp)
+    //See if the player collides with a floor/ceiling surface some distance away.
+    //Either check the ceiling above or the ground below.
+    //Return value is an object containing information on the collision. It's null if there was no collision.
+    private CollisionInfo TestFloorCollision(float distance, bool lookUp)
     {
-        float yOrigin = transform.position.y + (lookUp ? hitboxTopOffset : hitboxBottomOffset);
-        Vector2 leftOrigin = new Vector2(transform.position.x + hitboxLeftOffset + 0.005f, yOrigin);
-        Vector2 rightOrigin = new Vector2(transform.position.x + hitboxRightOffset - 0.005f, yOrigin);
+        float yOrigin = lookUp ? hitbox.bounds.max.y : hitbox.bounds.min.y;
+        Vector2 leftOrigin = new Vector2(hitbox.bounds.min.x + 0.005f, yOrigin);
+        Vector2 rightOrigin = new Vector2(hitbox.bounds.max.x - 0.005f, yOrigin);
         Vector2 dir = lookUp ? Vector2.up : Vector2.down;
 
-        CollisionInfo leftCol = SurfaceRayTestEx(leftOrigin, dir, distance, FLOOR_ANGLE);
-        CollisionInfo rightCol = SurfaceRayTestEx(rightOrigin, dir, distance, FLOOR_ANGLE);
+        CollisionInfo leftCol = SurfaceRayTest(leftOrigin, dir, distance, FLOOR_ANGLE);
+        CollisionInfo rightCol = SurfaceRayTest(rightOrigin, dir, distance, FLOOR_ANGLE);
 
         if(rightCol == null)
         {
@@ -394,17 +378,20 @@ public class MovingEntity : MonoBehaviour
         }
     }
 
-    private CollisionInfo TestWallCollisionEx(float distance, bool lookRight)
+    //See if the player collides with a wall some distance away.
+    //Either check for a wall to the right or the left.
+    //Return value is an object containing information on the collision. It's null if there was no collision.
+    private CollisionInfo TestWallCollision(float distance, bool lookRight)
     {
-        float xOrigin = transform.position.x + (lookRight ? hitboxRightOffset : hitboxLeftOffset);
-        Vector2 topOrigin = new Vector2(xOrigin, transform.position.y + hitboxTopOffset - 0.005f);
-        Vector2 middleOrigin = new Vector2(xOrigin, transform.position.y);
-        Vector2 bottomOrigin = new Vector2(xOrigin, transform.position.y + hitboxBottomOffset + 0.005f);
+        float xOrigin = lookRight ? hitbox.bounds.max.x : hitbox.bounds.min.x;
+        Vector2 topOrigin = new Vector2(xOrigin, hitbox.bounds.max.y - 0.005f);
+        Vector2 middleOrigin = new Vector2(xOrigin, hitbox.bounds.center.y);
+        Vector2 bottomOrigin = new Vector2(xOrigin, hitbox.bounds.min.y + 0.005f);
         Vector2 dir = lookRight ? Vector2.right : Vector2.left;
 
-        CollisionInfo topCol = SurfaceRayTestEx(topOrigin, dir, distance, WALL_ANGLE);
-        CollisionInfo middleCol = SurfaceRayTestEx(middleOrigin, dir, distance, WALL_ANGLE);
-        CollisionInfo bottomCol = SurfaceRayTestEx(bottomOrigin, dir, distance, WALL_ANGLE);
+        CollisionInfo topCol = SurfaceRayTest(topOrigin, dir, distance, WALL_ANGLE);
+        CollisionInfo middleCol = SurfaceRayTest(middleOrigin, dir, distance, WALL_ANGLE);
+        CollisionInfo bottomCol = SurfaceRayTest(bottomOrigin, dir, distance, WALL_ANGLE);
 
         if(topCol == null && middleCol == null && bottomCol == null)
         {
@@ -433,7 +420,8 @@ public class MovingEntity : MonoBehaviour
     // E.g. if the ray is cast downwards to check for the ground, it can't be too steep, otherwise it 
     // wouldn't count as 'ground'.
     //The ray starts from an inset position, to detect collisions inside, or at the bounds of, this hitbox.
-    private CollisionInfo SurfaceRayTestEx(Vector2 origin, Vector2 direction, float distance, float angleTolerance)
+    //Return value is an object containing information on the collision. It's null if there was no collision.
+    private CollisionInfo SurfaceRayTest(Vector2 origin, Vector2 direction, float distance, float angleTolerance)
     {
         RaycastHit2D hit = Physics2D.Raycast(
             origin - direction * SURFACE_CHECK_INSET,

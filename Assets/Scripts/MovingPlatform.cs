@@ -13,7 +13,7 @@ public class MovingPlatform : MonoBehaviour
     private Vector3 endPoint;
     private float totalDistance;
 
-    private bool paused = false;
+    private bool paused = true;
     private float pauseTimer = 0.0f;
 
     void Start()

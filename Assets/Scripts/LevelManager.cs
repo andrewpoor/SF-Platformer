@@ -7,6 +7,17 @@ public class LevelManager : MonoBehaviour
 
     private List<MovingEntity> entities = new();
 
+    void Awake()
+    {
+        if(Instance != null)
+        {
+            Debug.LogError("Multiple instances of level manager. There should only be one.");
+            return;
+        }
+
+        Instance = this;
+    }
+
     public List<MovingEntity> GetAllEntities()
     {
         return entities;
@@ -20,16 +31,5 @@ public class LevelManager : MonoBehaviour
     public void UnregisterEntity(MovingEntity entity)
     {
         entities.Remove(entity);
-    }
-
-    void Awake()
-    {
-        if(Instance != null)
-        {
-            Debug.LogError("Multiple instances of level manager. There should only be one.");
-            return;
-        }
-
-        Instance = this;
     }
 }

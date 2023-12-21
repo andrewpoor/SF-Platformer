@@ -24,13 +24,11 @@ public class MovingEntity : MonoBehaviour
     private bool leftWallContact = false;
     private bool slopedGround = false; //True if sticking to sloped ground.
 
-    //Surface riding. An entity is 'riding' a surface if it's attached to it.
-    //Entities are always considered riding a ground object below, due to gravity.
-    private bool ridingWall = false; //True if sticking to a wall.
-    private GameObject groundRidingObject = null;
-    private GameObject ceilingRidingObject = null;
-    private GameObject rightWallRidingObject = null;
-    private GameObject leftWallRidingObject = null;
+    //References to any moving solids at the contact points.
+    private MovingSolid groundMovingSolid = null;
+    private MovingSolid ceilingMovingSolid = null;
+    private MovingSolid rightWallMovingSolid = null;
+    private MovingSolid leftWallMovingSolid = null;
 
     //Collisions.
     private const float SURFACE_CHECK_INSET = 0.1f; //Surface check raycasts should start inset from the bounds of the collider.
@@ -40,6 +38,7 @@ public class MovingEntity : MonoBehaviour
     private const float FLOOR_ANGLE = 60.0f; //How steep a surface can be to be considered ground.
     private const float WALL_ANGLE = 25.0f; //How slanted a surface can be to be considered a wall.
     private const float MOVE_UNIT = 0.01f; //Movement is split into units for better collision detection. Smaller units are more precise but expensive.
+    private const float FLOOR_STICK_VELOCITY_THRESHOLD = -3.5f; //If the floor moves any slower than this, the entity should stay attached to it.
 
     //Control whether messages are sent on collision events.
     private bool floorMessages = false;
@@ -128,19 +127,18 @@ public class MovingEntity : MonoBehaviour
         return TestFloorCollision(distance, true) != null;
     }
 
-    //Tell the physics engine that this entity is, or isn't, 'riding' a wall.
-    public void SetRidingWall(bool isRiding)
+    //Check if this entity is riding the given object. The object's velocity is used as part of this check.
+    public bool IsRidingObject(MovingSolid ridableObject, Vector2 objVelocity)
     {
-        ridingWall = isRiding;
-    }
-
-    //Check if this entity is riding the given object.
-    public bool IsRidingObject(GameObject ridableObject)
-    {
-        return ceilingRidingObject == ridableObject ||
-            groundRidingObject == ridableObject ||
-            leftWallRidingObject == ridableObject ||
-            rightWallRidingObject == ridableObject;
+        //An entity is considered riding an object if it's pressing against it with a velocity
+        // greater than the velocity of the object.
+        //Ground collision is a special case, as Y velocity is zeroed on the ground, but the entity
+        // should still 'stick' to an object below if it's descending slow enough.
+        return 
+            (ceilingMovingSolid == ridableObject && velocity.y > objVelocity.y) ||
+            (groundMovingSolid == ridableObject && FLOOR_STICK_VELOCITY_THRESHOLD < objVelocity.y) ||
+            (rightWallMovingSolid == ridableObject && velocity.x > objVelocity.x) ||
+            (leftWallMovingSolid == ridableObject && velocity.x < objVelocity.x);
     }
 
     //Resolve velocity, acceleration and collisions.
@@ -310,16 +308,16 @@ public class MovingEntity : MonoBehaviour
         leftWallContact = leftWallCol != null && velocity.x < 0.01f;
 
         //Update riding objects. An object is being ridden if the entity is touching it and attached to it.
-        groundRidingObject = (groundContact && groundCol.isMovingSolid) ? groundCol.surfaceObject : null;
-        rightWallRidingObject = (rightWallContact && rightWallCol.isMovingSolid && ridingWall) ? rightWallCol.surfaceObject : null;
-        leftWallRidingObject = (leftWallContact && leftWallCol.isMovingSolid && ridingWall) ? leftWallCol.surfaceObject : null;
-        //Ceiling riding is currently always null as no entity has the ability to do so.
+        ceilingMovingSolid = (ceilingContact && ceilingCol.isMovingSolid) ? ceilingCol.surfaceObject.GetComponent<MovingSolid>() : null;
+        groundMovingSolid = (groundContact && groundCol.isMovingSolid) ? groundCol.surfaceObject.GetComponent<MovingSolid>() : null;
+        rightWallMovingSolid = (rightWallContact && rightWallCol.isMovingSolid) ? rightWallCol.surfaceObject.GetComponent<MovingSolid>() : null;
+        leftWallMovingSolid = (leftWallContact && leftWallCol.isMovingSolid) ? leftWallCol.surfaceObject.GetComponent<MovingSolid>() : null;
     }
 
     //Move horizontally by the given amount. If this would collide, stop short.
-    //amount should be positive. rightward indicates direction.
+    //moveDistance should be positive. rightward indicates direction.
     //Return value indicates if there was a collision in the movement direction.
-    private bool MoveCollideX(float moveDistance, bool rightward)
+    public bool MoveCollideX(float moveDistance, bool rightward)
     {
         //Check for collision, and cap movement if it's collided.
         CollisionInfo col = TestWallCollision(moveDistance, rightward);
@@ -333,9 +331,9 @@ public class MovingEntity : MonoBehaviour
     }
 
     //Move vertically by the given amount. If this would collide, stop short.
-    //amount should be positive. upward indicates direction.
+    //moveDistance should be positive. upward indicates direction.
     //Return value indicates if there was a collision in the movement direction.
-    private bool MoveCollideY(float moveDistance, bool upward)
+    public bool MoveCollideY(float moveDistance, bool upward)
     {
         //Check for collision, and cap movement if it's collided.
         CollisionInfo col = TestFloorCollision(moveDistance, upward);
@@ -440,7 +438,7 @@ public class MovingEntity : MonoBehaviour
                 {
                     angle = colAngle,
                     distance = hit.distance - SURFACE_CHECK_INSET,
-                    isMovingSolid = false,
+                    isMovingSolid = hit.collider.CompareTag("MovingSolid"),
                     surfaceObject = hit.collider.gameObject
                 };
             }

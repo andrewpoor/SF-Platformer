@@ -181,15 +181,12 @@ public class PlayerController : MonoBehaviour
         wallSliding = falling && yNewVelocity < 0.0f && ((rightWallContact && xRawInput > 0.01f) || (leftWallContact && xRawInput < -0.01f));
         if(wallSliding)
         {
-            xNewVelocity = 0.0f;
             yNewVelocity = -moveParams.wallSlideSpeed;
             entityPhysics.SetGravityScale(0.0f);
-            entityPhysics.SetRidingWall(true);
         }
         else
         {
             entityPhysics.SetGravityScale(1.0f);
-            entityPhysics.SetRidingWall(false);
         }
 
         //Horizontal movement.

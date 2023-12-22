@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Threading;
+using Unity.VisualScripting;
 using UnityEngine;
 
 public class PlayerController : MonoBehaviour
@@ -61,6 +62,13 @@ public class PlayerController : MonoBehaviour
     private bool leftWallContact = false;
     private bool rightWallContact = false;
 
+    //Launch variables.
+    //The player is 'launched' when the environment applies velocity to them.
+    private bool horizontalLaunching = false;
+    private float HORIZONTAL_LAUNCH_THRESHOLD = 2.0f; //How much imparted speed is needed to register as a launch.
+    private float HORIZ_FAST_LAUNCH_THRESHOLD = 4.5f; //How much total speed is needed for the launch to be 'fast'.
+    private float VERT_FAST_LAUNCH_THRESHOLD = 6.0f; //How much total speed is needed for the launch to be 'fast'.
+
     //Misc.
     private bool groundJumpEnabled = false;
     private bool wallJumpEnabled = false;
@@ -80,6 +88,7 @@ public class PlayerController : MonoBehaviour
 
         entityPhysics.EnableFloorMessages();
         entityPhysics.EnableWallMessages();
+        entityPhysics.EnableLaunchMessages();
 
         standingHitboxHeight = hitbox.bounds.size.y;
     }
@@ -199,7 +208,7 @@ public class PlayerController : MonoBehaviour
                 SetInputActive(InputButton.Dash); //Process the input.
                 StartCoroutine(HoldDash());
             }
-            else if(!wallJumping)
+            else if(!wallJumping && !horizontalLaunching)
             {
                 float curMoveSpeed;
 
@@ -414,6 +423,10 @@ public class PlayerController : MonoBehaviour
         animator.SetBool("WallSliding", wallSliding);
     }
 
+    /**************************
+     ***** Message Events *****
+     **************************/
+
     void OnLeaveFloor(bool isCeiling)
     {
         if(isCeiling)
@@ -445,6 +458,14 @@ public class PlayerController : MonoBehaviour
             // collision physics to act first.
             StartCoroutine(DelayGroundJumpEnabled(true));
         }
+    }
+
+    //Wait before enabling or disabling the jump.
+    private IEnumerator DelayGroundJumpEnabled(bool enabled)
+    {
+        yield return new WaitForSeconds(INPUT_BUFFER_TIME);
+
+        groundJumpEnabled = enabled;
     }
 
     void OnLeaveWall(bool isRightWall)
@@ -493,11 +514,64 @@ public class PlayerController : MonoBehaviour
         }
     }
 
-    //Wait before enabling or disabling the jump.
-    private IEnumerator DelayGroundJumpEnabled(bool enabled)
+    void OnLaunch(Vector3 launchVelocity)
     {
-        yield return new WaitForSeconds(INPUT_BUFFER_TIME);
+        Vector2 totalVelocity = entityPhysics.GetVelocity();
 
-        groundJumpEnabled = enabled;
+        //Check if there's any imparted speed, and that net velocity isn't zero.
+        if(Mathf.Abs(launchVelocity.x) >= HORIZONTAL_LAUNCH_THRESHOLD && Mathf.Abs(totalVelocity.x) > 0.01f)
+        {
+            StartCoroutine(HorizontalLaunch(totalVelocity.x > HORIZ_FAST_LAUNCH_THRESHOLD, totalVelocity.x > 0.0f));
+        }
+
+        //Check if the player was launched upwards, and isn't already considered launched horizontally.
+        if(totalVelocity.y >= VERT_FAST_LAUNCH_THRESHOLD && totalVelocity.x < HORIZ_FAST_LAUNCH_THRESHOLD)
+        {
+            StartCoroutine(VerticalLaunch());
+        }
+    }
+
+    private IEnumerator HorizontalLaunch(bool isFastLaunch, bool rightward)
+    {
+        horizontalLaunching = true;
+        dashTrail.emitting = isFastLaunch;
+
+        //Wait for a physics tick, to allow the player to register leaving the ground.
+        yield return new WaitForFixedUpdate();
+
+        //Player stays launched until they land, hit a wall or manually change direction.
+        bool changeDirection = false;
+        while(falling && !rightWallContact && !leftWallContact && !changeDirection)
+        {
+            yield return null;
+
+            changeDirection = rightward ? (Input.GetAxisRaw("Horizontal") < -0.1f) : (Input.GetAxisRaw("Horizontal") > 0.1f);
+        }
+
+        horizontalLaunching = false;
+        dashTrail.emitting = false;
+
+        //If the launch was aborted due to the player moving in the opposite direction,
+        // lose the horizontal speed they had.
+        if(changeDirection)
+        {
+            entityPhysics.SetVelocityX(0.0f);
+        }
+    }
+
+    private IEnumerator VerticalLaunch()
+    {
+        dashTrail.emitting = true;
+
+        //Wait for a physics tick, to allow the player to register leaving the ground.
+        yield return new WaitForFixedUpdate();
+
+        //Continue emitting trail until upward velocity is lost.
+        while(!ceilingContact && falling && entityPhysics.GetVelocity().y > 0.0f)
+        {
+            yield return null;
+        }
+
+        dashTrail.emitting = false;
     }
 }

@@ -1,3 +1,5 @@
+using System.Collections;
+using Unity.VisualScripting;
 using UnityEngine;
 
 /*
@@ -30,6 +32,11 @@ public class MovingEntity : MonoBehaviour
     private MovingSolid rightWallMovingSolid = null;
     private MovingSolid leftWallMovingSolid = null;
 
+    private bool isRiding = false;
+    private bool wasRiding = false;
+    private Vector3 ridingVelocity = Vector3.zero;
+    private float RIDING_VELOCITY_BUFFER_TIME = 0.1f;
+
     //Collisions.
     private const float SURFACE_CHECK_INSET = 0.1f; //Surface check raycasts should start inset from the bounds of the collider.
     private const float SURFACE_CHECK_DISTANCE = 0.001f; //How close a surface must be to be considered in contact with the player.
@@ -38,16 +45,17 @@ public class MovingEntity : MonoBehaviour
     private const float FLOOR_ANGLE = 60.0f; //How steep a surface can be to be considered ground.
     private const float WALL_ANGLE = 25.0f; //How slanted a surface can be to be considered a wall.
     private const float MOVE_UNIT = 0.01f; //Movement is split into units for better collision detection. Smaller units are more precise but expensive.
-    private const float FLOOR_STICK_VELOCITY_THRESHOLD = -3.5f; //If the floor moves any slower than this, the entity should stay attached to it.
+    private const float FLOOR_STICK_VELOCITY_THRESHOLD = 3.5f; //If the floor moves any slower than this, the entity should stay attached to it.
 
-    //Control whether messages are sent on collision events.
+    //Control whether messages are sent on certain events.
     private bool floorMessages = false;
     private bool wallMessages = false;
+    private bool launchMessages = false;
 
     //Movement.
     private const float GRAVITY_CONST = -9.81f;
-    private Vector3 acceleration = new Vector3(0.0f, 0.0f, 0.0f);
-    private Vector3 velocity = new Vector3(0.0f, 0.0f, 0.0f);
+    private Vector3 acceleration = Vector3.zero;
+    private Vector3 velocity = Vector3.zero;
 
     private class CollisionInfo
     {
@@ -69,6 +77,7 @@ public class MovingEntity : MonoBehaviour
 
     void FixedUpdate()
     {
+        UpdateRiding();
         UpdatePhysics();
     }
 
@@ -121,6 +130,14 @@ public class MovingEntity : MonoBehaviour
         wallMessages = enabled;
     }
 
+    //Tell this behaviour to send messages whenever this entity is launched by the environment.
+    //The Game Object must implement the appropriate message receiving function.
+    //(This is OnLaunch.)
+    public void EnableLaunchMessages(bool enabled = true)
+    {
+        launchMessages = enabled;
+    }
+
     //Check if there's a ceiling above the entity, within the given distance.
     public bool CheckCeilingCollision(float distance)
     {
@@ -134,11 +151,50 @@ public class MovingEntity : MonoBehaviour
         // greater than the velocity of the object.
         //Ground collision is a special case, as Y velocity is zeroed on the ground, but the entity
         // should still 'stick' to an object below if it's descending slow enough.
-        return 
+        bool ridingObject = 
             (ceilingMovingSolid == ridableObject && velocity.y > objVelocity.y) ||
-            (groundMovingSolid == ridableObject && FLOOR_STICK_VELOCITY_THRESHOLD < objVelocity.y) ||
+            (groundMovingSolid == ridableObject && -FLOOR_STICK_VELOCITY_THRESHOLD < objVelocity.y) ||
             (rightWallMovingSolid == ridableObject && velocity.x > objVelocity.x) ||
             (leftWallMovingSolid == ridableObject && velocity.x < objVelocity.x);
+
+        if(ridingObject)
+        {
+            isRiding = true;
+            ridingVelocity = objVelocity;
+        }
+
+        return ridingObject;
+    }
+
+    //Update state of riding an object.
+    //Note that the physics assumes the entity can only ever ride one object at a time.
+    private void UpdateRiding()
+    {
+        //Check if currently riding. If so, set the flag to false. The next time this function is called,
+        // if the entity is still riding an object, the flag will have been set back to true. If it's still false,
+        // this indicates the entity is no longer riding an object.
+        if(isRiding)
+        {
+            isRiding = false;
+            wasRiding = true;
+        }
+        else if(wasRiding)
+        {
+            //Was riding a moving object, but no longer.
+            wasRiding = false;
+            StartCoroutine(DelayLoseRidingVelocity());
+        }
+    }
+
+    //Called when the entity has stopped riding a moving object.
+    //The velocity imparted by the moving object will remain for a brief period,
+    // before being zeroed. This acts as a buffer so the player doesn't have to be
+    // too precise with their inputs when making use of this velocity.
+    private IEnumerator DelayLoseRidingVelocity()
+    {
+        yield return new WaitForSeconds(RIDING_VELOCITY_BUFFER_TIME);
+
+        ridingVelocity = Vector3.zero;
     }
 
     //Resolve velocity, acceleration and collisions.
@@ -164,6 +220,19 @@ public class MovingEntity : MonoBehaviour
         bool prevRightWall = rightWallContact;
         bool prevLeftWall = leftWallContact;
         CheckTouchingSurfaces();
+
+        //If the entity just left the ground, impart any velocity from an object it may have been riding.
+        if(prevGrounded && !groundContact && ridingVelocity.magnitude > 0.01f)
+        {
+            velocity += ridingVelocity;
+
+            if(launchMessages)
+            {
+                gameObject.SendMessage("OnLaunch", ridingVelocity);
+            }
+
+            ridingVelocity = Vector3.zero;
+        }
 
         //Send messages for starting or ending surface contacts.
         if(floorMessages)

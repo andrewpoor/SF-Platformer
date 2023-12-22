@@ -21,13 +21,11 @@ public class MovingSolid : MonoBehaviour
     //Move the solid the given amount. This will push or carry other entities,
     // but won't interact with other solids.
     //Should be called from FixedUpdate.
-    public void Move(float xMove, float yMove)
+    public void Move(float xMove, float yMove, Vector2 velocity)
     {
         float curRotation = transform.rotation.eulerAngles.z;
-        float fps = 1.0f / Time.fixedDeltaTime;
-        Vector2 curVelocity = new(xMove * fps, yMove * fps);
 
-        List<MovingEntity> ridingEntities = FindAllRidingEntities(curVelocity);
+        List<MovingEntity> ridingEntities = FindAllRidingEntities(velocity);
 
         //Disable hitbox to avoid extra collisions when riding actors are moved.
         hitbox.enabled = false;

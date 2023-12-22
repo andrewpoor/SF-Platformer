@@ -42,7 +42,9 @@ public class MovingPlatform : MonoBehaviour
             float curDistance = (transform.position - startPoint).magnitude;
             float nextDistance = curDistance + speed * Time.fixedDeltaTime;
             Vector3 movement = Vector3.Lerp(startPoint, endPoint, nextDistance / totalDistance) - transform.position;
-            solidPhysics.Move(movement.x, movement.y);
+            Vector2 velocity = movement.normalized * speed;
+
+            solidPhysics.Move(movement.x, movement.y, velocity);
 
             //If at the end, swap end points and pause for a moment.
             if(nextDistance >= totalDistance)

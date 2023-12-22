@@ -1,5 +1,4 @@
 using System.Collections;
-using Unity.VisualScripting;
 using UnityEngine;
 
 /*
@@ -32,10 +31,12 @@ public class MovingEntity : MonoBehaviour
     private MovingSolid rightWallMovingSolid = null;
     private MovingSolid leftWallMovingSolid = null;
 
+    //Riding moving surfaces.
     private bool isRiding = false;
     private bool wasRiding = false;
     private Vector3 ridingVelocity = Vector3.zero;
-    private float RIDING_VELOCITY_BUFFER_TIME = 0.1f;
+    private const float RIDING_VELOCITY_BUFFER_TIME = 0.1f;
+    private const float FLOOR_STICK_VELOCITY_THRESHOLD = 3.5f; //If the floor moves any slower than this, the entity should stay attached to it.
 
     //Collisions.
     private const float SURFACE_CHECK_INSET = 0.1f; //Surface check raycasts should start inset from the bounds of the collider.
@@ -45,7 +46,6 @@ public class MovingEntity : MonoBehaviour
     private const float FLOOR_ANGLE = 60.0f; //How steep a surface can be to be considered ground.
     private const float WALL_ANGLE = 25.0f; //How slanted a surface can be to be considered a wall.
     private const float MOVE_UNIT = 0.01f; //Movement is split into units for better collision detection. Smaller units are more precise but expensive.
-    private const float FLOOR_STICK_VELOCITY_THRESHOLD = 3.5f; //If the floor moves any slower than this, the entity should stay attached to it.
 
     //Control whether messages are sent on certain events.
     private bool floorMessages = false;
@@ -500,7 +500,7 @@ public class MovingEntity : MonoBehaviour
         //(Ignore hits from colliders inside the ray's origin, as no normal is computed in that instance.)
         if((hit.collider != null) && (hit.fraction != 0.0f))
         {
-            float colAngle = Mathf.Abs(Vector2.Angle(-direction, hit.normal));
+            float colAngle = Vector2.Angle(-direction, hit.normal);
             if(colAngle <= angleTolerance)
             {
                 return new CollisionInfo()

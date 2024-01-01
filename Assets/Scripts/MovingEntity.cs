@@ -15,8 +15,8 @@ public class MovingEntity : MonoBehaviour
     [SerializeField] private Rigidbody2D rBody;
 
     //Parameters.
-    public float verticalDrag = 0.1f;
-    public float gravityScale = 1.0f;
+    [SerializeField] private float verticalDrag = 0.1f;
+    [SerializeField] private float gravityScale = 1.0f;
 
     //Surface contacts.
     private bool groundContact = false; //True if the entity is on the ground.

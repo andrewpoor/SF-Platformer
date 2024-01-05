@@ -23,6 +23,7 @@ public class CameraController : MonoBehaviour
             if(playerAnchor != null)
             {
                 anchor = playerAnchor.transform;
+                transform.position = new Vector3(anchor.position.x, anchor.position.y, transform.position.z);
             }
         }
 

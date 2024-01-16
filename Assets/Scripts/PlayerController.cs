@@ -69,7 +69,7 @@ public class PlayerController : MonoBehaviour
     private float HORIZ_FAST_LAUNCH_THRESHOLD = 4.5f; //How much total speed is needed for the launch to be 'fast'.
     private float VERT_FAST_LAUNCH_THRESHOLD = 6.0f; //How much total speed is needed for the launch to be 'fast'.
 
-    //Misc.
+    //Miscellaneous movement.
     private bool groundJumpEnabled = false;
     private bool wallJumpEnabled = false;
     private bool wallJumping = false;
@@ -78,6 +78,9 @@ public class PlayerController : MonoBehaviour
     private bool dashEnabled = true;
     private bool forceCrouch = false;
     private float standingHitboxHeight;
+
+    //Damage.
+    private bool damageable = true;
 
     void Start()
     {
@@ -573,5 +576,20 @@ public class PlayerController : MonoBehaviour
         }
 
         dashTrail.emitting = false;
+    }
+
+    void OnTriggerEnter2D(Collider2D other)
+    {
+        if(damageable && other.CompareTag("Enemy"))
+        {
+            StartCoroutine(TakeDamage(10));
+        }
+    }
+
+    private IEnumerator TakeDamage(int damage)
+    {
+        Debug.Log("Hit!");
+        damageable = false;
+        yield return null;
     }
 }

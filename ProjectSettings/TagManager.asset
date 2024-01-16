@@ -6,6 +6,7 @@ TagManager:
   tags:
   - MovingSolid
   - PlayerCamAnchor
+  - Enemy
   layers:
   - Default
   - TransparentFX
@@ -13,9 +14,9 @@ TagManager:
   - Surface
   - Water
   - UI
-  - Entity
+  - SolidEntity
   - Camera Blocker
-  - 
+  - NoclipEntity
   - 
   - 
   - 

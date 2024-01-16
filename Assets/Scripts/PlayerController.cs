@@ -1,7 +1,5 @@
 using System;
 using System.Collections;
-using System.Threading;
-using Unity.VisualScripting;
 using UnityEngine;
 
 public class PlayerController : MonoBehaviour
@@ -11,6 +9,7 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private MovingEntity entityPhysics;
     [SerializeField] private TrailRenderer dashTrail;
     [SerializeField] private BoxCollider2D hitbox;
+    [SerializeField] private SpriteRenderer spriteRenderer;
 
     [Serializable]
     private class MovementParameters
@@ -49,12 +48,13 @@ public class PlayerController : MonoBehaviour
     }
 
     //Animation signals.
-    private bool jumpTrigger = false;
+    private bool jumpSignal = false;
     private bool falling = true; 
-    private bool landTrigger = false;
+    private bool landSignal = false;
     private bool crouching = false;
     private bool dashing = false;
     private bool wallSliding = false;
+    private bool flinching = false;
 
     //Surface contacts.
     //These are updated during physics FixedUpdate, so might not be in sync with Update.
@@ -65,9 +65,9 @@ public class PlayerController : MonoBehaviour
     //Launch variables.
     //The player is 'launched' when the environment applies velocity to them.
     private bool horizontalLaunching = false;
-    private float HORIZONTAL_LAUNCH_THRESHOLD = 2.0f; //How much imparted speed is needed to register as a launch.
-    private float HORIZ_FAST_LAUNCH_THRESHOLD = 4.5f; //How much total speed is needed for the launch to be 'fast'.
-    private float VERT_FAST_LAUNCH_THRESHOLD = 6.0f; //How much total speed is needed for the launch to be 'fast'.
+    private const float HORIZONTAL_LAUNCH_THRESHOLD = 2.0f; //How much imparted speed is needed to register as a launch.
+    private const float HORIZ_FAST_LAUNCH_THRESHOLD = 4.5f; //How much total speed is needed for the launch to be 'fast'.
+    private const float VERT_FAST_LAUNCH_THRESHOLD = 6.0f; //How much total speed is needed for the launch to be 'fast'.
 
     //Miscellaneous movement.
     private bool groundJumpEnabled = false;
@@ -81,6 +81,13 @@ public class PlayerController : MonoBehaviour
 
     //Damage.
     private bool damageable = true;
+    [SerializeField] private float flinchDuration = 0.2f; //Duration player is unresponsive for after damaged.
+    [SerializeField] private float mercyInvulnDuration = 2.0f; //Duration player is invulnerable for after damaged.
+    private bool damageFromRight; //False indicates damage came from the left side of the player.
+    private float knockbackSpeed = 1.0f; //Speed player moves when knocked back.
+    private Color invulnColorA = new Color(0.8f, 0.8f, 0.8f, 0.8f); //Player flashes between two colours to indicate mercy invulnerability.
+    private Color invulnColorB = new Color(0.6f, 0.6f, 0.6f, 0.6f);
+    private float invulnFlashPeriod = 0.15f;
 
     void Start()
     {
@@ -163,6 +170,13 @@ public class PlayerController : MonoBehaviour
     //Respond to user input and determine velocity for the next frame.
     private void UpdateMovement()
     {
+        //Taking damage knocks player back and ignores all inputs.
+        if(flinching)
+        {
+            entityPhysics.SetVelocityX(damageFromRight ? -knockbackSpeed : knockbackSpeed);
+            return;
+        }
+
         float xNewVelocity = entityPhysics.GetVelocity().x;
         float yNewVelocity = entityPhysics.GetVelocity().y;
         float xRawInput = Input.GetAxisRaw("Horizontal");
@@ -255,7 +269,7 @@ public class PlayerController : MonoBehaviour
                     //Normal ground jump.
                     yNewVelocity = moveParams.jumpSpeed;
                     SetInputInactive(InputButton.Jump); //Process the input.
-                    jumpTrigger = true;
+                    jumpSignal = true;
                     groundJumpEnabled = false;
                     StartCoroutine(HoldJump());
                 }
@@ -311,7 +325,7 @@ public class PlayerController : MonoBehaviour
         yield return new WaitForSeconds(moveParams.superJumpPrepareTime);
 
         entityPhysics.SetVelocityY(moveParams.superJumpSpeed);
-        jumpTrigger = true;
+        jumpSignal = true;
         superJumping = true;
         superCrouching = false;
         dashTrail.emitting = true;
@@ -364,7 +378,7 @@ public class PlayerController : MonoBehaviour
         dashTrail.emitting = true;
 
         //Maintain dash.
-        while(Input.GetAxisRaw("Dash") > 0.1f && timer < moveParams.dashDuration)
+        while(Input.GetAxisRaw("Dash") > 0.1f && timer < moveParams.dashDuration && !flinching)
         {
             //Ground dash in direction we're facing.
             entityPhysics.SetVelocityX(transform.localScale.x > 0.0f ? moveParams.dashSpeed : -moveParams.dashSpeed);
@@ -409,21 +423,64 @@ public class PlayerController : MonoBehaviour
             transform.localScale = new Vector3(-curScale.x, curScale.y, curScale.z);
         }
 
-        animator.SetBool("Jumping", jumpTrigger);
-        jumpTrigger = false; //Single trigger.
+        animator.SetBool("Jumping", jumpSignal);
+        jumpSignal = false; //Single trigger.
+        animator.SetBool("Landing", landSignal);
+        landSignal = false; //Single trigger.
 
         animator.SetBool("Falling", falling);
-
-        animator.SetBool("Landing", landTrigger);
-        landTrigger = false; //Single trigger.
-
         animator.SetBool("Crouching", crouching);
-
         animator.SetBool("PrepareSuperJump", superCrouching);
-
         animator.SetBool("Dashing", dashing);
-
         animator.SetBool("WallSliding", wallSliding);
+        animator.SetBool("Flinching", flinching);
+    }
+
+    void OnTriggerStay2D(Collider2D other)
+    {
+        if(damageable && other.CompareTag("Enemy"))
+        {
+            StartCoroutine(TakeDamage(10));
+            damageFromRight = other.transform.position.x > transform.position.x;
+        }
+    }
+
+    private IEnumerator TakeDamage(int damage)
+    {
+        //Upon taking damage, the player flinches and goes into a state of
+        // 'mercy invulnerability', preventing them from taking further damage.
+        // During this state, their color flashes different translucent shades to indicate the effect.
+
+        flinching = true;
+        damageable = false;
+        spriteRenderer.color = invulnColorA;
+        bool isColorA = true;
+        float totalTimer = 0.0f;
+        float flashTimer = 0.0f;
+
+        while(totalTimer < mercyInvulnDuration)
+        {
+            if(totalTimer >= flinchDuration)
+            {
+                flinching = false;
+            }
+
+            //Alternate between two invuln colours on a regular timer.
+            if(flashTimer >= invulnFlashPeriod)
+            {
+                spriteRenderer.color = isColorA ? invulnColorB : invulnColorA;
+                isColorA = !isColorA;
+                flashTimer = 0.0f;
+            }
+
+            yield return null;
+
+            totalTimer += Time.deltaTime;
+            flashTimer += Time.deltaTime;
+        }
+
+        damageable = true;
+        spriteRenderer.color = Color.white;
     }
 
     /**************************
@@ -455,7 +512,7 @@ public class PlayerController : MonoBehaviour
         else //Landed on the ground.
         {
             falling = false;
-            landTrigger = true;
+            landSignal = true;
 
             //Wait before enabling the jump. This adds a brief delay, to allow
             // collision physics to act first.
@@ -576,20 +633,5 @@ public class PlayerController : MonoBehaviour
         }
 
         dashTrail.emitting = false;
-    }
-
-    void OnTriggerEnter2D(Collider2D other)
-    {
-        if(damageable && other.CompareTag("Enemy"))
-        {
-            StartCoroutine(TakeDamage(10));
-        }
-    }
-
-    private IEnumerator TakeDamage(int damage)
-    {
-        Debug.Log("Hit!");
-        damageable = false;
-        yield return null;
     }
 }

@@ -444,22 +444,23 @@ public class PlayerController : MonoBehaviour
 
     void OnTriggerStay2D(Collider2D other)
     {
-        if(damageable && other.CompareTag("Enemy"))
+        //Check if collided object is something that can damage the player.
+        PlayerDamager damager = other.GetComponent<PlayerDamager>();
+
+        if(damageable && damager != null)
         {
             //Take damage from contact with enemy (including enemy attacks).
 
-            health -= 50; //TEMP.
+            health -= damager.GetDamage();
             damageFromRight = other.transform.position.x > transform.position.x;
 
-            if(health > 0)
+            if(health > 0 && !damager.IsLethal())
             {
                 StartCoroutine(Flinch());
             }
             else
             {
-                //Kill player.
-                Instantiate(deathEffect, transform.position, transform.rotation);
-                Destroy(gameObject);
+                KillPlayer();
             }
         }
     }
@@ -501,6 +502,13 @@ public class PlayerController : MonoBehaviour
 
         damageable = true;
         spriteRenderer.color = Color.white;
+    }
+
+    //Kill the player character, playing a death effect and destroying this gameObject.
+    private void KillPlayer()
+    {
+        Instantiate(deathEffect, transform.position, transform.rotation);
+        Destroy(gameObject);
     }
 
     /**************************
@@ -578,14 +586,14 @@ public class PlayerController : MonoBehaviour
 
     void OnHorizontalSquash()
     {
-        //TODO: Kill player here.
+        KillPlayer();
     }
 
     void OnVerticalSquash()
     {
         if(crouching)
         {
-            //TODO: Kill player here.
+            KillPlayer();
         }
         else
         {

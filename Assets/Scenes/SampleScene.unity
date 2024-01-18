@@ -2188,6 +2188,7 @@ MonoBehaviour:
   dashTrail: {fileID: 907924049}
   hitbox: {fileID: 1196570909}
   spriteRenderer: {fileID: 1196570903}
+  deathEffect: {fileID: 2975329174131871792, guid: f5f60e2b8616a4841acd947725a3f0ae, type: 3}
   moveParams:
     runSpeed: 2.5
     jumpSpeed: 4
@@ -2204,6 +2205,7 @@ MonoBehaviour:
     dashRepeatDelay: 0.5
     dashWallJumpHorizSpeed: 3
     dashWallJumpVertSpeed: 4
+  maxHealth: 100
   flinchDuration: 0.2
   mercyInvulnDuration: 2
 --- !u!61 &1196570909

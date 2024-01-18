@@ -10,6 +10,7 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private TrailRenderer dashTrail;
     [SerializeField] private BoxCollider2D hitbox;
     [SerializeField] private SpriteRenderer spriteRenderer;
+    [SerializeField] private PlayerDeathEffect deathEffect;
 
     [Serializable]
     private class MovementParameters
@@ -79,15 +80,19 @@ public class PlayerController : MonoBehaviour
     private bool forceCrouch = false;
     private float standingHitboxHeight;
 
-    //Damage.
-    private bool damageable = true;
+    //Damage parameters.
+    [SerializeField] private int maxHealth = 100;
     [SerializeField] private float flinchDuration = 0.2f; //Duration player is unresponsive for after damaged.
     [SerializeField] private float mercyInvulnDuration = 2.0f; //Duration player is invulnerable for after damaged.
+    private const float KNOCKBACK_SPEED = 1.0f; //Speed player moves when knocked back.
+    private readonly Color invulnColorA = new Color(0.8f, 0.8f, 0.8f, 0.8f); //Player flashes between two colours to indicate mercy invulnerability.
+    private readonly Color invulnColorB = new Color(0.6f, 0.6f, 0.6f, 0.6f);
+    private const float INVULN_FLASH_PERIOD = 0.15f; //Time taken to alternate between invulnColors.
+
+    //Damage variables.
+    private int health;
+    private bool damageable = true;
     private bool damageFromRight; //False indicates damage came from the left side of the player.
-    private float knockbackSpeed = 1.0f; //Speed player moves when knocked back.
-    private Color invulnColorA = new Color(0.8f, 0.8f, 0.8f, 0.8f); //Player flashes between two colours to indicate mercy invulnerability.
-    private Color invulnColorB = new Color(0.6f, 0.6f, 0.6f, 0.6f);
-    private float invulnFlashPeriod = 0.15f;
 
     void Start()
     {
@@ -101,6 +106,7 @@ public class PlayerController : MonoBehaviour
         entityPhysics.EnableLaunchMessages();
 
         standingHitboxHeight = hitbox.bounds.size.y;
+        health = maxHealth;
     }
 
     void Update()
@@ -173,7 +179,7 @@ public class PlayerController : MonoBehaviour
         //Taking damage knocks player back and ignores all inputs.
         if(flinching)
         {
-            entityPhysics.SetVelocityX(damageFromRight ? -knockbackSpeed : knockbackSpeed);
+            entityPhysics.SetVelocityX(damageFromRight ? -KNOCKBACK_SPEED : KNOCKBACK_SPEED);
             return;
         }
 
@@ -440,12 +446,26 @@ public class PlayerController : MonoBehaviour
     {
         if(damageable && other.CompareTag("Enemy"))
         {
-            StartCoroutine(TakeDamage(10));
+            //Take damage from contact with enemy (including enemy attacks).
+
+            health -= 50; //TEMP.
             damageFromRight = other.transform.position.x > transform.position.x;
+
+            if(health > 0)
+            {
+                StartCoroutine(Flinch());
+            }
+            else
+            {
+                //Kill player.
+                Instantiate(deathEffect, transform.position, transform.rotation);
+                Destroy(gameObject);
+            }
         }
     }
 
-    private IEnumerator TakeDamage(int damage)
+    //React to damage by flinching and gaining mercy invulnerability.
+    private IEnumerator Flinch()
     {
         //Upon taking damage, the player flinches and goes into a state of
         // 'mercy invulnerability', preventing them from taking further damage.
@@ -466,7 +486,7 @@ public class PlayerController : MonoBehaviour
             }
 
             //Alternate between two invuln colours on a regular timer.
-            if(flashTimer >= invulnFlashPeriod)
+            if(flashTimer >= INVULN_FLASH_PERIOD)
             {
                 spriteRenderer.color = isColorA ? invulnColorB : invulnColorA;
                 isColorA = !isColorA;

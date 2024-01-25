@@ -56,12 +56,14 @@ SpriteAtlas:
   - {fileID: 21300000, guid: ed57c1f4a6e3dc1458d8dd4b0f9befca, type: 3}
   - {fileID: 21300000, guid: 9eaad625debf8084daea34b90a34b004, type: 3}
   - {fileID: 21300000, guid: 8800e175a61dd8a49aebb738661769f5, type: 3}
+  - {fileID: 21300000, guid: 11a638561e8ec9c4eab09be84f6d26a8, type: 3}
   - {fileID: 21300000, guid: 8a6e05a6061f0d446988ab348071bb14, type: 3}
   - {fileID: 21300000, guid: 98f73b87e700ed94db30ca68ff1a0311, type: 3}
   - {fileID: 21300000, guid: 0ec690a7cead9e040bc24ca5cf597402, type: 3}
   - {fileID: 21300000, guid: ae2273a70511b074d929ddfb089a641c, type: 3}
   - {fileID: 21300000, guid: 8054a0c79a8c43a4089b4cfdbcaf2d79, type: 3}
   - {fileID: 21300000, guid: 9a034c69161cfe94b9ec712e88aeb0d9, type: 3}
+  - {fileID: 21300000, guid: 4214be6925bc58340b674d556044c5ac, type: 3}
   - {fileID: 21300000, guid: a424ac899f955c444b12bece6c2adcd3, type: 3}
   - {fileID: 21300000, guid: 0385003b6df4baf43bd784891959c312, type: 3}
   - {fileID: 21300000, guid: 5a91aaabbc0c7af4ab95ba2053af4784, type: 3}
@@ -70,6 +72,7 @@ SpriteAtlas:
   - {fileID: 21300000, guid: 0c80ff6cf29ecb948ad30c86800e449c, type: 3}
   - {fileID: 21300000, guid: 9cfe6c1f991cc2b41be83d78adec1a47, type: 3}
   - {fileID: 21300000, guid: eaa0f72f2cae76c4cbad0ac48b51acf9, type: 3}
+  - {fileID: 21300000, guid: f8f94e6f7aac8614f9bab39ef16bffd2, type: 3}
   m_PackedSpriteNamesToIndex:
   - enemy-explosion-1
   - shot-3
@@ -77,12 +80,14 @@ SpriteAtlas:
   - enemy-explosion-5
   - player-shoot4
   - enemy-explosion-3
+  - player-shoot-hit3
   - enemy-shoot3
   - enemy-shoot1
   - enemy-explosion-2
   - enemy-explosion-4
   - shot-2
   - enemy-shoot2
+  - player-shoot-hit2
   - player-shoot3
   - player-shoot2
   - shot-hit-2
@@ -91,6 +96,7 @@ SpriteAtlas:
   - enemy-explosion-6
   - player-shoot1
   - shot-hit-3
+  - player-shoot-hit1
   m_RenderDataMap: {}
   m_Tag: Warped Effects
   m_IsVariant: 0

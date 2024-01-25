@@ -645,7 +645,7 @@ GameObject:
   - component: {fileID: 284696166}
   m_Layer: 3
   m_Name: Lethal Hazards
-  m_TagString: Untagged
+  m_TagString: StaticSolid
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -3234,7 +3234,8 @@ MonoBehaviour:
   dashTrail: {fileID: 907924049}
   hitbox: {fileID: 1196570909}
   spriteRenderer: {fileID: 1196570903}
-  deathEffect: {fileID: 2975329174131871792, guid: f5f60e2b8616a4841acd947725a3f0ae, type: 3}
+  deathEffectPrefab: {fileID: 2975329174131871792, guid: f5f60e2b8616a4841acd947725a3f0ae, type: 3}
+  bulletPrefab: {fileID: 1231023020782656417, guid: ffe4123d4fcf4bc459780d6e3f6ba4c0, type: 3}
   moveParams:
     runSpeed: 2.5
     jumpSpeed: 4
@@ -3442,7 +3443,7 @@ GameObject:
   - component: {fileID: 1217493611}
   m_Layer: 3
   m_Name: Terrain Base
-  m_TagString: Untagged
+  m_TagString: StaticSolid
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0

@@ -4,13 +4,16 @@ using UnityEngine;
 
 public class PlayerController : MonoBehaviour
 {
-    //References.
+    //Component references.
     [SerializeField] private Animator animator;
     [SerializeField] private MovingEntity entityPhysics;
     [SerializeField] private TrailRenderer dashTrail;
     [SerializeField] private BoxCollider2D hitbox;
     [SerializeField] private SpriteRenderer spriteRenderer;
-    [SerializeField] private PlayerDeathEffect deathEffect;
+
+    //Prefab references.
+    [SerializeField] private PlayerDeathEffect deathEffectPrefab;
+    [SerializeField] private PlayerBullet bulletPrefab;
 
     [Serializable]
     private class MovementParameters
@@ -418,6 +421,11 @@ public class PlayerController : MonoBehaviour
         if(IsInputActive(InputButton.Fire) && !superCrouching && !superJumping && !flinching)
         {
             firingSignal = true;
+            SetInputInactive(InputButton.Fire); //Process the input.
+
+            //Spawn bullet.
+            PlayerBullet bullet = Instantiate(bulletPrefab, transform.position, transform.rotation);
+            bullet.SetDirection(transform.localScale.x > 0.0f);
         }
     }
 
@@ -545,7 +553,7 @@ public class PlayerController : MonoBehaviour
     //Kill the player character, playing a death effect and destroying this gameObject.
     private void KillPlayer()
     {
-        Instantiate(deathEffect, transform.position, transform.rotation);
+        Instantiate(deathEffectPrefab, transform.position, transform.rotation);
         Destroy(gameObject);
     }
 

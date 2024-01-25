@@ -56,6 +56,7 @@ public class PlayerController : MonoBehaviour
     private bool dashing = false;
     private bool wallSliding = false;
     private bool flinching = false;
+    private bool firingSignal = false;
 
     //Surface contacts.
     //These are updated during physics FixedUpdate, so might not be in sync with Update.
@@ -112,6 +113,7 @@ public class PlayerController : MonoBehaviour
     void Update()
     {
         UpdateMovement();
+        UpdateActions();
         UpdateAnimations();
     }
 
@@ -143,6 +145,9 @@ public class PlayerController : MonoBehaviour
             break;
         case InputButton.Dash:
             inputName = "Dash";
+            break;
+        case InputButton.Fire:
+            inputName = "Fire1";
             break;
         default:
             //Do not process this input.
@@ -403,6 +408,17 @@ public class PlayerController : MonoBehaviour
         dashEnabled = true;
     }
 
+    //Respond to user input for non-movement-related actions such as attacking.
+    private void UpdateActions()
+    {
+        //Fire gun.
+        if(IsInputActive(InputButton.Fire) && !superCrouching && !superJumping && !flinching)
+        {
+            firingSignal = true;
+            Debug.Log("Shoot!");
+        }
+    }
+
     private void UpdateAnimations()
     {
         float rawX = Input.GetAxisRaw("Horizontal");
@@ -429,10 +445,13 @@ public class PlayerController : MonoBehaviour
             transform.localScale = new Vector3(-curScale.x, curScale.y, curScale.z);
         }
 
+        //Signals: send once, then turn off.
         animator.SetBool("Jumping", jumpSignal);
-        jumpSignal = false; //Single trigger.
+        jumpSignal = false;
         animator.SetBool("Landing", landSignal);
-        landSignal = false; //Single trigger.
+        landSignal = false;
+        animator.SetBool("Firing", firingSignal);
+        firingSignal = false;
 
         animator.SetBool("Falling", falling);
         animator.SetBool("Crouching", crouching);

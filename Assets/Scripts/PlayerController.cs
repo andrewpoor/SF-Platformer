@@ -48,7 +48,7 @@ public class PlayerController : MonoBehaviour
         Fire = 1 << 2
     }
 
-    //Animation signals.
+    //Animation controls.
     private bool jumpSignal = false;
     private bool falling = true; 
     private bool landSignal = false;
@@ -57,6 +57,9 @@ public class PlayerController : MonoBehaviour
     private bool wallSliding = false;
     private bool flinching = false;
     private bool firingSignal = false;
+    private const float FIRING_ANIM_DURATION = 0.2f; //How long firing animation lasts.
+    private float firingAnimTimer = FIRING_ANIM_DURATION; //Tracks how long firing animation has been playing.
+
 
     //Surface contacts.
     //These are updated during physics FixedUpdate, so might not be in sync with Update.
@@ -415,7 +418,6 @@ public class PlayerController : MonoBehaviour
         if(IsInputActive(InputButton.Fire) && !superCrouching && !superJumping && !flinching)
         {
             firingSignal = true;
-            Debug.Log("Shoot!");
         }
     }
 
@@ -450,8 +452,25 @@ public class PlayerController : MonoBehaviour
         jumpSignal = false;
         animator.SetBool("Landing", landSignal);
         landSignal = false;
-        animator.SetBool("Firing", firingSignal);
-        firingSignal = false;
+
+        //Control duration of firing animation. Resets every time the gun is fired in succession.
+        //The firingSignal bool is used to indicate each time the gun has been fired.
+        //Firing animation is controlled by a blend tree, so floats 0.0 and 1.0 are used instead of bools.
+        if(firingSignal)
+        {
+            firingAnimTimer = 0.0f; //Reset timer.
+            firingSignal = false;
+            animator.SetFloat("FiringBlend", 1.0f);
+        }
+        else if(firingAnimTimer < FIRING_ANIM_DURATION)
+        {
+            firingAnimTimer += Time.deltaTime;
+            animator.SetFloat("FiringBlend", 1.0f);
+        }
+        else
+        {
+            animator.SetFloat("FiringBlend", 0.0f);
+        }
 
         animator.SetBool("Falling", falling);
         animator.SetBool("Crouching", crouching);

@@ -3,13 +3,16 @@ using UnityEngine;
 public class PlayerBullet : MonoBehaviour
 {
     [SerializeField] private EnemyDamager enemyDamager;
+    [SerializeField] private Rigidbody2D rbody;
+    [SerializeField] private Animator animator;
     
-    [SerializeField] private float speed = 5.0f; //Set before Start. Changing later does nothing.
+    [SerializeField] private float speed = 4.0f; //Set before Start. Changing later does nothing.
     [SerializeField] private bool shootsRight = true; //If false, shoots to the left.
     [SerializeField] private float lifetime = 3.0f; //Max time bullet can be alive for before despawning.
 
     private float velocity;
     private float aliveTimer = 0.0f; //How long bullet has existed for.
+    private bool inFlight = true;
 
     public void SetSpeed(float speed)
     {
@@ -40,15 +43,36 @@ public class PlayerBullet : MonoBehaviour
 
     void Update()
     {
-        aliveTimer += Time.deltaTime;
+        if(inFlight)
+        {
+            aliveTimer += Time.deltaTime;
         
-        if(aliveTimer > lifetime)
-        {
-            Destroy(gameObject);
+            if(aliveTimer > lifetime)
+            {
+                Destroy(gameObject);
+            }
+            else
+            {
+                rbody.position += new Vector2(velocity * Time.deltaTime, 0.0f);
+            }
         }
-        else
+    }
+
+    void OnTriggerEnter2D(Collider2D other)
+    {
+        if(other.CompareTag("StaticSolid") || other.CompareTag("MovingSolid") || other.CompareTag("Enemy"))
         {
-            transform.position += new Vector3(velocity * Time.deltaTime, 0.0f, 0.0f);
+            //Bullet hits this entity, fizzles out and then despawns.
+            //Note that the 'hit' animation disables the bullet's collider in the next frame.
+            
+            inFlight = false;
+            animator.SetBool("Hit", true); //Upon completion, the animation will signal back.
         }
+    }
+
+    //Called by animator after the fadeout 'hit' animation is complete.
+    void FinishFadeout()
+    {
+        Destroy(gameObject);
     }
 }

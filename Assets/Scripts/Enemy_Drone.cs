@@ -5,6 +5,7 @@ public class Enemy_Drone : MonoBehaviour
 {
     //References.
     [SerializeField] private Animator animator;
+    [SerializeField] private Rigidbody2D rbody;
 
     //Parameters.
     [SerializeField] private float patrolDistance = 2.0f;
@@ -51,7 +52,7 @@ public class Enemy_Drone : MonoBehaviour
                     distanceTravelled += frameMovement;
                 }
 
-                transform.position += new Vector3(moveLeft ? -frameMovement : frameMovement, 0.0f, 0.0f);
+                rbody.position += new Vector2(moveLeft ? -frameMovement : frameMovement, 0.0f);
 
                 yield return null;
             }

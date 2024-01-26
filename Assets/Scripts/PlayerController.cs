@@ -10,6 +10,9 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private TrailRenderer dashTrail;
     [SerializeField] private BoxCollider2D hitbox;
     [SerializeField] private SpriteRenderer spriteRenderer;
+    [SerializeField] private Transform groundBulletSpawn;
+    [SerializeField] private Transform crouchBulletSpawn;
+    [SerializeField] private Transform airBulletSpawn;
 
     //Prefab references.
     [SerializeField] private PlayerDeathEffect deathEffectPrefab;
@@ -63,7 +66,6 @@ public class PlayerController : MonoBehaviour
     private const float FIRING_ANIM_DURATION = 0.2f; //How long firing animation lasts.
     private float firingAnimTimer = FIRING_ANIM_DURATION; //Tracks how long firing animation has been playing.
 
-
     //Surface contacts.
     //These are updated during physics FixedUpdate, so might not be in sync with Update.
     private bool ceilingContact = false;
@@ -101,6 +103,14 @@ public class PlayerController : MonoBehaviour
     private bool damageable = true;
     private bool damageFromRight; //False indicates damage came from the left side of the player.
 
+    //Gun.
+    [SerializeField] private float gunRepeatDelay = 0.15f; //Delay between gunshots.
+    [SerializeField] private int maxAmmo = 3;
+    [SerializeField] private float gunReloadTime = 1.0f; //Time before ammo auto-refills. 
+    private bool gunEnabled = true;
+    private int ammo;
+    private float gunReloadTimer;
+
     void Start()
     {
         foreach(InputButton button in Enum.GetValues(typeof(InputButton)))
@@ -114,6 +124,8 @@ public class PlayerController : MonoBehaviour
 
         standingHitboxHeight = hitbox.bounds.size.y;
         health = maxHealth;
+        ammo = maxAmmo;
+        gunReloadTimer = gunReloadTime;
     }
 
     void Update()
@@ -417,16 +429,46 @@ public class PlayerController : MonoBehaviour
     //Respond to user input for non-movement-related actions such as attacking.
     private void UpdateActions()
     {
-        //Fire gun.
-        if(IsInputActive(InputButton.Fire) && !superCrouching && !superJumping && !flinching)
+        //Reload gun after a delay.
+        if(gunReloadTimer < gunReloadTime)
         {
+            gunReloadTimer += Time.deltaTime;
+        }
+        else
+        {
+            ammo = maxAmmo;
+        }
+
+        //Fire gun.
+        if(gunEnabled && ammo > 0 && IsInputActive(InputButton.Fire) && !superCrouching && !superJumping && !flinching)
+        {
+            //If this is the first shot that spends ammo, start the reload timer.
+            if(ammo == maxAmmo)
+            {
+                gunReloadTimer = 0.0f;
+            }
+            
             firingSignal = true;
             SetInputInactive(InputButton.Fire); //Process the input.
+            ammo--;
 
             //Spawn bullet.
-            PlayerBullet bullet = Instantiate(bulletPrefab, transform.position, transform.rotation);
+            Vector3 spawnPos = falling ? airBulletSpawn.position : (crouching ? crouchBulletSpawn.position : groundBulletSpawn.position);
+            PlayerBullet bullet = Instantiate(bulletPrefab, spawnPos, transform.rotation);
             bullet.SetDirection(transform.localScale.x > 0.0f);
+
+            StartCoroutine(GunshotDelay());
         }
+    }
+
+    //Prevent repeat gunshots until timer is elapsed.
+    private IEnumerator GunshotDelay()
+    {
+        gunEnabled = false;
+
+        yield return new WaitForSeconds(gunRepeatDelay);
+
+        gunEnabled = true;
     }
 
     private void UpdateAnimations()

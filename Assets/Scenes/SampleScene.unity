@@ -63784,7 +63784,7 @@ TilemapRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 10754, guid: 0000000000000000f000000000000000, type: 0}
+  - {fileID: 2100000, guid: 2d86b91d1da41b140a1fb40a67986951, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -76846,6 +76846,7 @@ GameObject:
   - component: {fileID: 1939308926}
   - component: {fileID: 1939308931}
   - component: {fileID: 1939308932}
+  - component: {fileID: 1939308933}
   m_Layer: 8
   m_Name: Drone Enemy
   m_TagString: Enemy
@@ -76867,6 +76868,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   animator: {fileID: 1939308927}
   rbody: {fileID: 1939308932}
+  spriteRenderer: {fileID: 1939308928}
+  explosionPrefab: {fileID: 8301001693233618150, guid: 5e8500ff815c6ed47ad0014b2ca96432, type: 3}
   patrolDistance: 2
   moveSpeed: 1
   moveLeft: 1
@@ -77009,6 +77012,19 @@ Rigidbody2D:
   m_SleepingMode: 1
   m_CollisionDetection: 0
   m_Constraints: 0
+--- !u!114 &1939308933
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1939308925}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0680ab9f7f5d1bc43b1d6a8c27d83fa4, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  maxHealth: 60
 --- !u!1 &2078169064
 GameObject:
   m_ObjectHideFlags: 0

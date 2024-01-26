@@ -3,9 +3,13 @@ using UnityEngine;
 
 public class Enemy_Drone : MonoBehaviour
 {
-    //References.
+    //Component references.
     [SerializeField] private Animator animator;
     [SerializeField] private Rigidbody2D rbody;
+    [SerializeField] private SpriteRenderer spriteRenderer;
+
+    //Prefab references.
+    [SerializeField] private EnemyExplosion explosionPrefab;
 
     //Parameters.
     [SerializeField] private float patrolDistance = 2.0f;
@@ -14,6 +18,9 @@ public class Enemy_Drone : MonoBehaviour
 
     private bool turning = false;
     private bool alive = true;
+    private readonly Color hitColor = new Color(1.0f, 0.7f, 0.9f);
+    private const float HIT_COLOR_DURATION = 0.15f;
+    private float hitColorTimer = HIT_COLOR_DURATION;
 
     void Start()
     {
@@ -24,6 +31,19 @@ public class Enemy_Drone : MonoBehaviour
         }
 
         StartCoroutine(Patrol());
+    }
+
+    void Update()
+    {
+        if(hitColorTimer < HIT_COLOR_DURATION)
+        {
+            hitColorTimer += Time.deltaTime;
+            spriteRenderer.color = hitColor;
+        }
+        else
+        {
+            spriteRenderer.color = Color.white;
+        }
     }
 
     //Movement pattern for this enemy.
@@ -76,5 +96,18 @@ public class Enemy_Drone : MonoBehaviour
         Vector3 curScale = transform.localScale;
         transform.localScale = new Vector3(-curScale.x, curScale.y, curScale.z);
         turning = false;
+    }
+
+    //Message event for responding to taking damage.
+    void OnTakeDamage(int damage)
+    {
+        hitColorTimer = 0.0f; //Start hit colour effect.
+    }
+
+    //Message event for responding to signal to be killed.
+    void OnKilled()
+    {
+        Instantiate(explosionPrefab, transform.position, transform.rotation);
+        Destroy(gameObject);
     }
 }

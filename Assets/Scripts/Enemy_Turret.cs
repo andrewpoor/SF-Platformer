@@ -24,6 +24,11 @@ public class Enemy_Turret : MonoBehaviour
         player = GameObject.FindWithTag("Player").transform;
     }
 
+    public void Initialise(float shootRepeatDelay)
+    {
+        this.shootRepeatDelay = shootRepeatDelay;
+    }
+
     void Update()
     {
         if(!turning && player != null)

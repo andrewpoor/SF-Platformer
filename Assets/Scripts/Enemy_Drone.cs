@@ -29,6 +29,13 @@ public class Enemy_Drone : MonoBehaviour
         StartCoroutine(Patrol());
     }
 
+    public void Initialise(float patrolDistance, float moveSpeed, bool moveLeft)
+    {
+        this.patrolDistance = patrolDistance;
+        this.moveSpeed = moveSpeed;
+        this.moveLeft = moveLeft;
+    }
+
     void Update()
     {
         

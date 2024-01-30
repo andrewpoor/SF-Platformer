@@ -68,7 +68,14 @@ SpriteAtlas:
   - {fileID: 21300000, guid: 0385003b6df4baf43bd784891959c312, type: 3}
   - {fileID: 21300000, guid: 5a91aaabbc0c7af4ab95ba2053af4784, type: 3}
   - {fileID: 21300000, guid: e345dcdbfe39e7c4892108d0bcd73a93, type: 3}
-  - {fileID: 21300000, guid: ee294e0c5ff72ce47a35a8e77c5965b8, type: 3}
+  - {fileID: -1288185645, guid: ee294e0c5ff72ce47a35a8e77c5965b8, type: 3}
+  - {fileID: -327013893, guid: ee294e0c5ff72ce47a35a8e77c5965b8, type: 3}
+  - {fileID: 982950362, guid: ee294e0c5ff72ce47a35a8e77c5965b8, type: 3}
+  - {fileID: -2065690209, guid: ee294e0c5ff72ce47a35a8e77c5965b8, type: 3}
+  - {fileID: -1552979829, guid: ee294e0c5ff72ce47a35a8e77c5965b8, type: 3}
+  - {fileID: -326274472, guid: ee294e0c5ff72ce47a35a8e77c5965b8, type: 3}
+  - {fileID: 1776003433, guid: ee294e0c5ff72ce47a35a8e77c5965b8, type: 3}
+  - {fileID: 1052548832, guid: ee294e0c5ff72ce47a35a8e77c5965b8, type: 3}
   - {fileID: 21300000, guid: 0c80ff6cf29ecb948ad30c86800e449c, type: 3}
   - {fileID: 21300000, guid: 9cfe6c1f991cc2b41be83d78adec1a47, type: 3}
   - {fileID: 21300000, guid: eaa0f72f2cae76c4cbad0ac48b51acf9, type: 3}
@@ -92,7 +99,14 @@ SpriteAtlas:
   - player-shoot2
   - shot-hit-2
   - shot-hit-1
-  - explosion-a
+  - explosion-a_7
+  - explosion-a_6
+  - explosion-a_5
+  - explosion-a_4
+  - explosion-a_3
+  - explosion-a_2
+  - explosion-a_1
+  - explosion-a_0
   - enemy-explosion-6
   - player-shoot1
   - shot-hit-3

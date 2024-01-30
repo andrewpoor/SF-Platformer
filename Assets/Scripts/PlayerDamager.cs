@@ -14,6 +14,11 @@ public class PlayerDamager : MonoBehaviour
         return damage;
     }
 
+    public void SetDamage(int damage)
+    {
+        this.damage = damage;
+    }
+
     public bool IsLethal()
     {
         return isLethal;

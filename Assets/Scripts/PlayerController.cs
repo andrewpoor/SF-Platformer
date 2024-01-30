@@ -13,6 +13,7 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private Transform groundBulletSpawn;
     [SerializeField] private Transform crouchBulletSpawn;
     [SerializeField] private Transform airBulletSpawn;
+    [SerializeField] private Transform wallslideBulletSpawn;
 
     //Prefab references.
     [SerializeField] private PlayerDeathEffect deathEffectPrefab;
@@ -88,6 +89,7 @@ public class PlayerController : MonoBehaviour
     private bool dashEnabled = true;
     private bool forceCrouch = false;
     private float standingHitboxHeight;
+    private bool inputsEnabled = false;
 
     //Damage parameters.
     [SerializeField] private int maxHealth = 100;
@@ -126,12 +128,25 @@ public class PlayerController : MonoBehaviour
         health = maxHealth;
         ammo = maxAmmo;
         gunReloadTimer = gunReloadTime;
+
+        //TEMP. Emulate receiving 'start' signal from level.
+        StartCoroutine(TEMPDelayInputsEnabled());
+    }
+
+    private IEnumerator TEMPDelayInputsEnabled()
+    {
+        yield return new WaitForSeconds(1.0f);
+        inputsEnabled = true;
     }
 
     void Update()
     {
-        UpdateMovement();
-        UpdateActions();
+        if(inputsEnabled)
+        {
+            UpdateMovement();
+            UpdateActions();
+        }
+
         UpdateAnimations();
     }
 
@@ -453,9 +468,14 @@ public class PlayerController : MonoBehaviour
             ammo--;
 
             //Spawn bullet.
-            Vector3 spawnPos = falling ? airBulletSpawn.position : (crouching ? crouchBulletSpawn.position : groundBulletSpawn.position);
+            Vector3 spawnPos = 
+                  wallSliding ? wallslideBulletSpawn.position
+                : falling ? airBulletSpawn.position
+                : crouching ? crouchBulletSpawn.position
+                : groundBulletSpawn.position;
+
             PlayerBullet bullet = Instantiate(bulletPrefab, spawnPos, transform.rotation);
-            bullet.SetDirection(transform.localScale.x > 0.0f);
+            bullet.SetDirection(wallSliding ? (transform.localScale.x < 0.0f) : (transform.localScale.x > 0.0f));
 
             StartCoroutine(GunshotDelay());
         }
@@ -473,7 +493,7 @@ public class PlayerController : MonoBehaviour
 
     private void UpdateAnimations()
     {
-        float rawX = Input.GetAxisRaw("Horizontal");
+        float rawX = inputsEnabled ? Input.GetAxisRaw("Horizontal") : 0.0f;
         animator.SetFloat("HorizontalMove", Mathf.Abs(rawX));
 
         //Determine sprite direction.

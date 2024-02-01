@@ -3,7 +3,7 @@ using UnityEngine;
 //Basic moving platform that moves back and forth in a straight line.
 public class MovingPlatform : MonoBehaviour
 {
-    [SerializeField] private MovingSolid solidPhysics;
+    [SerializeField] private MovingSurface solidPhysics;
 
     [SerializeField] private float speed = 1.0f;
     [SerializeField] private Vector2 endOffset = new(2.0f, 0.0f);

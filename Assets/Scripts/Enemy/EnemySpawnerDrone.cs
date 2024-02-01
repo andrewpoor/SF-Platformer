@@ -1,8 +1,8 @@
 using UnityEngine;
 
-public class DroneSpawner : EnemySpawnerBase
+public class EnemySpawnerDrone : EnemySpawnerBase
 {
-    [SerializeField] private Enemy_Drone dronePrefab;
+    [SerializeField] private EnemyDrone dronePrefab;
 
     //Enemy parameters.
     [SerializeField] private float patrolDistance = 2.0f;
@@ -11,7 +11,7 @@ public class DroneSpawner : EnemySpawnerBase
 
     protected override GameObject SpawnEnemy()
     {
-        Enemy_Drone enemy = Instantiate(dronePrefab, transform.position, transform.rotation);
+        EnemyDrone enemy = Instantiate(dronePrefab, transform.position, transform.rotation);
         enemy.Initialise(patrolDistance, moveSpeed, moveLeft);
 
         return enemy.gameObject;

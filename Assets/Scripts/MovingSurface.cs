@@ -2,7 +2,7 @@ using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 
-public class MovingSolid : MonoBehaviour
+public class MovingSurface : MonoBehaviour
 {
     [SerializeField] private BoxCollider2D hitbox;
     [SerializeField] private Rigidbody2D rBody;

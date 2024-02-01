@@ -1,6 +1,6 @@
 using UnityEngine;
 
-public class Enemy_Turret : MonoBehaviour
+public class EnemyTurret : MonoBehaviour
 {
     //Component references.
     [SerializeField] private Animator animator;

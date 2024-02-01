@@ -1,7 +1,7 @@
 using System.Collections;
 using UnityEngine;
 
-public class Enemy_Drone : MonoBehaviour
+public class EnemyDrone : MonoBehaviour
 {
     //Component references.
     [SerializeField] private Animator animator;

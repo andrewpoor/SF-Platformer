@@ -26,10 +26,10 @@ public class MovingEntity : MonoBehaviour
     private bool slopedGround = false; //True if sticking to sloped ground.
 
     //References to any moving solids at the contact points.
-    private MovingSolid groundMovingSolid = null;
-    private MovingSolid ceilingMovingSolid = null;
-    private MovingSolid rightWallMovingSolid = null;
-    private MovingSolid leftWallMovingSolid = null;
+    private MovingSurface groundMovingSolid = null;
+    private MovingSurface ceilingMovingSolid = null;
+    private MovingSurface rightWallMovingSolid = null;
+    private MovingSurface leftWallMovingSolid = null;
 
     //Riding moving surfaces.
     private bool isRiding = false;
@@ -149,7 +149,7 @@ public class MovingEntity : MonoBehaviour
     }
 
     //Check if this entity is riding the given object. The object's velocity is used as part of this check.
-    public bool IsRidingObject(MovingSolid ridableObject, Vector2 objVelocity)
+    public bool IsRidingObject(MovingSurface ridableObject, Vector2 objVelocity)
     {
         //An entity is considered riding an object if it's pressing against it with a velocity
         // greater than the velocity of the object.
@@ -384,10 +384,10 @@ public class MovingEntity : MonoBehaviour
         leftWallContact = leftWallCol != null && velocity.x < 0.01f;
 
         //Update riding objects. An object is being ridden if the entity is touching it and attached to it.
-        ceilingMovingSolid = (ceilingContact && ceilingCol.isMovingSolid) ? ceilingCol.surfaceObject.GetComponent<MovingSolid>() : null;
-        groundMovingSolid = (groundContact && groundCol.isMovingSolid) ? groundCol.surfaceObject.GetComponent<MovingSolid>() : null;
-        rightWallMovingSolid = (rightWallContact && rightWallCol.isMovingSolid) ? rightWallCol.surfaceObject.GetComponent<MovingSolid>() : null;
-        leftWallMovingSolid = (leftWallContact && leftWallCol.isMovingSolid) ? leftWallCol.surfaceObject.GetComponent<MovingSolid>() : null;
+        ceilingMovingSolid = (ceilingContact && ceilingCol.isMovingSolid) ? ceilingCol.surfaceObject.GetComponent<MovingSurface>() : null;
+        groundMovingSolid = (groundContact && groundCol.isMovingSolid) ? groundCol.surfaceObject.GetComponent<MovingSurface>() : null;
+        rightWallMovingSolid = (rightWallContact && rightWallCol.isMovingSolid) ? rightWallCol.surfaceObject.GetComponent<MovingSurface>() : null;
+        leftWallMovingSolid = (leftWallContact && leftWallCol.isMovingSolid) ? leftWallCol.surfaceObject.GetComponent<MovingSurface>() : null;
     }
 
     //Move horizontally by the given amount. If this would collide, stop short.

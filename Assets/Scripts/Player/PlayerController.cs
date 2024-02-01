@@ -726,7 +726,7 @@ public class PlayerController : MonoBehaviour
         }
     }
 
-    void OnLaunch(Vector3 launchVelocity)
+    void OnLaunch(Vector2 launchVelocity)
     {
         Vector2 totalVelocity = entityPhysics.GetVelocity();
 

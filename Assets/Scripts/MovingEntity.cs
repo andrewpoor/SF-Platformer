@@ -34,7 +34,7 @@ public class MovingEntity : MonoBehaviour
     //Riding moving surfaces.
     private bool isRiding = false;
     private bool wasRiding = false;
-    private Vector3 ridingVelocity = Vector3.zero;
+    private Vector2 ridingVelocity = Vector2.zero;
     private const float RIDING_VELOCITY_BUFFER_TIME = 0.1f;
     private const float FLOOR_STICK_VELOCITY_THRESHOLD = 3.5f; //If the floor moves any slower than this, the entity should stay attached to it.
 
@@ -53,8 +53,8 @@ public class MovingEntity : MonoBehaviour
 
     //Movement.
     private const float GRAVITY_CONST = -9.81f;
-    private Vector3 acceleration = Vector3.zero;
-    private Vector3 velocity = Vector3.zero;
+    private Vector2 acceleration = Vector2.zero;
+    private Vector2 velocity = Vector2.zero;
 
     private class CollisionInfo
     {
@@ -198,14 +198,14 @@ public class MovingEntity : MonoBehaviour
     {
         yield return new WaitForSeconds(RIDING_VELOCITY_BUFFER_TIME);
 
-        ridingVelocity = Vector3.zero;
+        ridingVelocity = Vector2.zero;
     }
 
     //Resolve velocity, acceleration and collisions.
     private void UpdatePhysics()
     {
         //Calculate movement based on velocity. Uses Verlet method.
-        Vector3 moveDelta = (velocity + (acceleration / 2.0f) * Time.fixedDeltaTime) * Time.fixedDeltaTime;
+        Vector2 moveDelta = (velocity + (acceleration / 2.0f) * Time.fixedDeltaTime) * Time.fixedDeltaTime;
 
         //Apply movement, accounting for collisions.
         Move(moveDelta.x, moveDelta.y);
@@ -233,16 +233,15 @@ public class MovingEntity : MonoBehaviour
         {
             //Impart riding velocity, but only if it increases the entity's speed.
             //(Reducing player speed when jumping off a moving platform feels bad.)
-            float newX = ((velocity.x < 0) == (ridingVelocity.x < 0) || velocity.x == 0.0f) ? velocity.x + ridingVelocity.x : velocity.x;
-            float newY = ((velocity.y < 0) == (ridingVelocity.y < 0) || velocity.y == 0.0f) ? velocity.y + ridingVelocity.y : velocity.y;
-            velocity = new Vector3(newX, newY, 0.0f);
+            velocity.x = ((velocity.x < 0) == (ridingVelocity.x < 0) || velocity.x == 0.0f) ? velocity.x + ridingVelocity.x : velocity.x;
+            velocity.y = ((velocity.y < 0) == (ridingVelocity.y < 0) || velocity.y == 0.0f) ? velocity.y + ridingVelocity.y : velocity.y;
 
             if(launchMessages)
             {
                 gameObject.SendMessage("OnLaunch", ridingVelocity);
             }
 
-            ridingVelocity = Vector3.zero;
+            ridingVelocity = Vector2.zero;
         }
 
         //Send messages for starting or ending surface contacts.

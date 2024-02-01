@@ -12,16 +12,22 @@ public class Enemy_Turret : MonoBehaviour
 
     //Parameters.
     [SerializeField] private float shootRepeatDelay = 2.0f;
+    [SerializeField] private float delayBeforeFirstShot = 0.5f;
+    [SerializeField] private float playerDistanceThreshold = 3.5f; //Threshold before turret starts shooting at player.
 
     private Transform player;
 
     private bool facingRight = false;
     private bool turning = false;
-    private float shootTimer = 0.0f;
+    private bool turretActive = false; //Won't shoot until it's seen the player (i.e. turret is on-screen).
+    private float shootTimer;
 
     void Start()
     {
         player = GameObject.FindWithTag("Player").transform;
+
+        //Once active, the turret will wait a short moment before it begins firing.
+        shootTimer = shootRepeatDelay - delayBeforeFirstShot;
     }
 
     public void Initialise(float shootRepeatDelay)
@@ -33,8 +39,13 @@ public class Enemy_Turret : MonoBehaviour
     {
         if(!turning && player != null)
         {
-            //Check which side player is on, and begin turning if needed.
             float distToPlayer = player.position.x - transform.position.x;
+
+            //The turret 'activates' once the player is close enough, then stays active even if the
+            // player moves further away afterwards.
+            turretActive = turretActive || (Mathf.Abs(distToPlayer) <= playerDistanceThreshold);
+
+            //Check which side player is on, and begin turning if needed.
             if((facingRight && distToPlayer < 0.0f) || (!facingRight && distToPlayer > 0.0f))
             {
                 //Turn to face player.
@@ -43,7 +54,7 @@ public class Enemy_Turret : MonoBehaviour
                 facingRight = !facingRight;
                 shootTimer = 0.0f; //Reset shoot timer. Must start over any time it turns.
             }
-            else
+            else if(turretActive)
             {
                 //Shoot bullets periodically.
                 shootTimer += Time.deltaTime;

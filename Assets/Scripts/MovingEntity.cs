@@ -39,7 +39,6 @@ public class MovingEntity : MonoBehaviour
     private const float FLOOR_STICK_VELOCITY_THRESHOLD = 3.5f; //If the floor moves any slower than this, the entity should stay attached to it.
 
     //Collisions.
-    private const float SURFACE_CHECK_INSET = 0.1f; //Surface check raycasts should start inset from the bounds of the collider.
     private const float SURFACE_CHECK_DISTANCE = 0.001f; //How close a surface must be to be considered in contact with the player.
     private const float SLOPE_CHECK_DISTANCE = 0.1f; //How close a slope can be below to still stick to it.
     private const int SURFACE_LAYER_MASK = 1 << 3;
@@ -106,6 +105,11 @@ public class MovingEntity : MonoBehaviour
     public void SetVelocityY(float yNewVelocity)
     {
         velocity.y = yNewVelocity;
+    }
+
+    public float GetGravityScale()
+    {
+        return gravityScale;
     }
 
     //Set strength of gravity. 1.0 is the default.
@@ -424,9 +428,10 @@ public class MovingEntity : MonoBehaviour
         Vector2 leftOrigin = new Vector2(hitbox.bounds.min.x + 0.005f, yOrigin);
         Vector2 rightOrigin = new Vector2(hitbox.bounds.max.x - 0.005f, yOrigin);
         Vector2 dir = lookUp ? Vector2.up : Vector2.down;
+        float inset = hitbox.bounds.size.y;
 
-        CollisionInfo leftCol = SurfaceRayTest(leftOrigin, dir, distance, FLOOR_ANGLE);
-        CollisionInfo rightCol = SurfaceRayTest(rightOrigin, dir, distance, FLOOR_ANGLE);
+        CollisionInfo leftCol = SurfaceRayTest(leftOrigin, inset, dir, distance, FLOOR_ANGLE);
+        CollisionInfo rightCol = SurfaceRayTest(rightOrigin, inset, dir, distance, FLOOR_ANGLE);
 
         if(rightCol == null)
         {
@@ -455,10 +460,11 @@ public class MovingEntity : MonoBehaviour
         Vector2 middleOrigin = new Vector2(xOrigin, hitbox.bounds.center.y);
         Vector2 bottomOrigin = new Vector2(xOrigin, hitbox.bounds.min.y + 0.005f);
         Vector2 dir = lookRight ? Vector2.right : Vector2.left;
+        float inset = hitbox.bounds.size.x;
 
-        CollisionInfo topCol = SurfaceRayTest(topOrigin, dir, distance, WALL_ANGLE);
-        CollisionInfo middleCol = SurfaceRayTest(middleOrigin, dir, distance, WALL_ANGLE);
-        CollisionInfo bottomCol = SurfaceRayTest(bottomOrigin, dir, distance, WALL_ANGLE);
+        CollisionInfo topCol = SurfaceRayTest(topOrigin, inset, dir, distance, WALL_ANGLE);
+        CollisionInfo middleCol = SurfaceRayTest(middleOrigin, inset, dir, distance, WALL_ANGLE);
+        CollisionInfo bottomCol = SurfaceRayTest(bottomOrigin, inset, dir, distance, WALL_ANGLE);
 
         if(topCol == null && middleCol == null && bottomCol == null)
         {
@@ -486,14 +492,15 @@ public class MovingEntity : MonoBehaviour
     //A hit surface must be angled within the given tolerance to be valid.
     // E.g. if the ray is cast downwards to check for the ground, it can't be too steep, otherwise it 
     // wouldn't count as 'ground'.
-    //The ray starts from an inset position, to detect collisions inside, or at the bounds of, this hitbox.
+    //The ray starts from an inset position, to detect collisions inside, or at the bounds of, this hitbox. The inset
+    // should typically be set to the width/height of the hitbox so that the ray covers the full span of the hitbox too.
     //Return value is an object containing information on the collision. It's null if there was no collision.
-    private CollisionInfo SurfaceRayTest(Vector2 origin, Vector2 direction, float distance, float angleTolerance)
+    private CollisionInfo SurfaceRayTest(Vector2 surfaceOrigin, float inset, Vector2 direction, float distance, float angleTolerance)
     {
         RaycastHit2D hit = Physics2D.Raycast(
-            origin - direction * SURFACE_CHECK_INSET,
+            surfaceOrigin - direction * inset,
             direction,
-            SURFACE_CHECK_INSET + distance,
+            inset + distance,
             SURFACE_LAYER_MASK);
         
         //Check if it hit a surface, and if so, that the surface angle is within tolerance.
@@ -506,7 +513,7 @@ public class MovingEntity : MonoBehaviour
                 return new CollisionInfo()
                 {
                     angle = colAngle,
-                    distance = hit.distance - SURFACE_CHECK_INSET,
+                    distance = hit.distance - inset,
                     isMovingSolid = hit.collider.CompareTag("MovingSolid"),
                     surfaceObject = hit.collider.gameObject
                 };

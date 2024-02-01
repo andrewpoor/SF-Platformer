@@ -90,6 +90,7 @@ public class PlayerController : MonoBehaviour
     private bool forceCrouch = false;
     private float standingHitboxHeight;
     private bool inputsEnabled = false;
+    private float curGravScale;
 
     //Damage parameters.
     [SerializeField] private int maxHealth = 100;
@@ -128,6 +129,7 @@ public class PlayerController : MonoBehaviour
         health = maxHealth;
         ammo = maxAmmo;
         gunReloadTimer = gunReloadTime;
+        curGravScale = entityPhysics.GetGravityScale();
 
         //TEMP. Emulate receiving 'start' signal from level.
         StartCoroutine(TEMPDelayInputsEnabled());
@@ -256,7 +258,7 @@ public class PlayerController : MonoBehaviour
         }
         else
         {
-            entityPhysics.SetGravityScale(1.0f);
+            entityPhysics.SetGravityScale(curGravScale);
         }
 
         //Horizontal movement.

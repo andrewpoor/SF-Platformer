@@ -231,7 +231,11 @@ public class MovingEntity : MonoBehaviour
         //If the entity just left the ground, impart any velocity from an object it may have been riding.
         if(prevGrounded && !groundContact && ridingVelocity.magnitude > 0.01f)
         {
-            velocity += ridingVelocity;
+            //Impart riding velocity, but only if it increases the entity's speed.
+            //(Reducing player speed when jumping off a moving platform feels bad.)
+            float newX = ((velocity.x < 0) == (ridingVelocity.x < 0) || velocity.x == 0.0f) ? velocity.x + ridingVelocity.x : velocity.x;
+            float newY = ((velocity.y < 0) == (ridingVelocity.y < 0) || velocity.y == 0.0f) ? velocity.y + ridingVelocity.y : velocity.y;
+            velocity = new Vector3(newX, newY, 0.0f);
 
             if(launchMessages)
             {

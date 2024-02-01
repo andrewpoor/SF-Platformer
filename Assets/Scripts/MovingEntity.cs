@@ -210,6 +210,9 @@ public class MovingEntity : MonoBehaviour
         //Apply movement, accounting for collisions.
         Move(moveDelta.x, moveDelta.y);
 
+        //Ensure rigidbody stays awake even if there's no movement.
+        rBody.WakeUp();
+
         if(moveDelta.y == 0)
         {
             //Special check for sloped ground. If there's no vertical movement, which indicates the

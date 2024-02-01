@@ -552,16 +552,28 @@ public class PlayerController : MonoBehaviour
         animator.SetBool("Flinching", flinching);
     }
 
-    //Check damaging collisions. 'Stay' rather than 'Enter' as some damaging entities
-    // (such as spike traps) are persistent and will continue to cause damage while in contact.
+    void OnTriggerEnter2D(Collider2D other)
+    {
+        CheckCollideDamage(other);
+    }
+
     void OnTriggerStay2D(Collider2D other)
+    {
+        //After flinching, the player might still be in contact with something that can damage them
+        // (E.g. spikes), so need to keep checking.
+        CheckCollideDamage(other);
+    }
+
+    //Helper function for collisions.
+    //Checks if the collider can damage the player, and if so, damages them.
+    private void CheckCollideDamage(Collider2D other)
     {
         //Check if collided object is something that can damage the player.
         PlayerDamager damager = other.GetComponent<PlayerDamager>();
 
         if(damageable && damager != null)
         {
-            //Take damage from contact with enemy (including enemy attacks).
+            //Take damage from contact with enemy (including enemy attacks or level hazards).
 
             health -= damager.GetDamage();
             damageFromRight = other.transform.position.x > transform.position.x;

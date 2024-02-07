@@ -434,7 +434,7 @@ public class MovingEntity : MonoBehaviour
         Vector2 leftOrigin = new Vector2(hitbox.bounds.min.x + 0.005f, yOrigin);
         Vector2 rightOrigin = new Vector2(hitbox.bounds.max.x - 0.005f, yOrigin);
         Vector2 dir = lookUp ? Vector2.up : Vector2.down;
-        float inset = hitbox.bounds.size.y;
+        float inset = hitbox.bounds.size.y - 0.005f;;
 
         CollisionInfo leftCol = SurfaceRayTest(leftOrigin, inset, dir, distance, FLOOR_ANGLE);
         CollisionInfo rightCol = SurfaceRayTest(rightOrigin, inset, dir, distance, FLOOR_ANGLE);
@@ -466,7 +466,7 @@ public class MovingEntity : MonoBehaviour
         Vector2 middleOrigin = new Vector2(xOrigin, hitbox.bounds.center.y);
         Vector2 bottomOrigin = new Vector2(xOrigin, hitbox.bounds.min.y + 0.005f);
         Vector2 dir = lookRight ? Vector2.right : Vector2.left;
-        float inset = hitbox.bounds.size.x;
+        float inset = hitbox.bounds.size.x - 0.005f;
 
         CollisionInfo topCol = SurfaceRayTest(topOrigin, inset, dir, distance, WALL_ANGLE);
         CollisionInfo middleCol = SurfaceRayTest(middleOrigin, inset, dir, distance, WALL_ANGLE);

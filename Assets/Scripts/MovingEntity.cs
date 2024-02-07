@@ -504,29 +504,36 @@ public class MovingEntity : MonoBehaviour
     //Return value is an object containing information on the collision. It's null if there was no collision.
     private CollisionInfo SurfaceRayTest(Vector2 surfaceOrigin, float inset, Vector2 direction, float distance, float angleTolerance)
     {
-        RaycastHit2D hit = Physics2D.Raycast(
+        RaycastHit2D[] hits = Physics2D.RaycastAll(
             surfaceOrigin - direction * inset,
             direction,
             inset + distance,
             SURFACE_LAYER_MASK);
-        
-        //Check if it hit a surface, and if so, that the surface angle is within tolerance.
-        //(Ignore hits from colliders inside the ray's origin, as no normal is computed in that instance.)
-        if((hit.collider != null) && (hit.fraction != 0.0f))
+
+        CollisionInfo validSurface = null; //Will remain null if no valid surface was hit, to indicate as such.
+
+        foreach(RaycastHit2D hit in hits)
         {
-            float colAngle = Vector2.Angle(-direction, hit.normal);
-            if(colAngle <= angleTolerance)
+            //Check if it hit a surface, and if so, that the surface angle is within tolerance.
+            //(Ignore hits from colliders inside the ray's origin, as no normal is computed in that instance.)
+            if((hit.collider != null) && (hit.fraction != 0.0f))
             {
-                return new CollisionInfo()
+                float colAngle = Vector2.Angle(-direction, hit.normal);
+                if(colAngle <= angleTolerance)
                 {
-                    angle = colAngle,
-                    distance = hit.distance - inset,
-                    isMovingSolid = hit.collider.CompareTag("MovingSolid"),
-                    surfaceObject = hit.collider.gameObject
-                };
+                    validSurface = new CollisionInfo()
+                    {
+                        angle = colAngle,
+                        distance = hit.distance - inset,
+                        isMovingSolid = hit.collider.CompareTag("MovingSolid"),
+                        surfaceObject = hit.collider.gameObject
+                    };
+
+                    break; //Only care about the closest valid surface the ray hits.
+                }
             }
         }
-    
-        return null;
+
+        return validSurface;
     }
 }

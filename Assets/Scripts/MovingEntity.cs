@@ -153,13 +153,14 @@ public class MovingEntity : MonoBehaviour
     {
         //An entity is considered riding an object if it's pressing against it with a velocity
         // greater than the velocity of the object.
+        //An entity will only be considered as riding the wall of an object if it's not grounded.
         //Ground collision is a special case, as Y velocity is zeroed on the ground, but the entity
         // should still 'stick' to an object below if it's descending slow enough.
         bool ridingObject = 
             (ceilingMovingSolid == ridableObject && velocity.y > objVelocity.y) ||
             (groundMovingSolid == ridableObject && -FLOOR_STICK_VELOCITY_THRESHOLD < objVelocity.y) ||
-            (rightWallMovingSolid == ridableObject && velocity.x > objVelocity.x) ||
-            (leftWallMovingSolid == ridableObject && velocity.x < objVelocity.x);
+            (rightWallMovingSolid == ridableObject && velocity.x > objVelocity.x && !groundContact) ||
+            (leftWallMovingSolid == ridableObject && velocity.x < objVelocity.x && !groundContact);
 
         if(ridingObject)
         {
